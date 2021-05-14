@@ -5,15 +5,18 @@ Despite have administrative rights, usually it asks for a password.
 Pick one of the following options to take back control.
 
 ## Using the App
+
 People who prefer apps over commands lines can use
-`Kill ZScaler.app` which is a simple wrapper of the
-shell script described below.
+`Kill ZScaler.app` which is a simple wrapper of the shell script described below.
 
 - [Download this repository as an archive](/bkahlert/kill-zscaler/archive/refs/heads/main.zip).
 - Open `Kill ZScaler.app` to kill ZScaler.
 - To use ZScaler again, reboot or open `Start ZScaler.app`.
 
+[![Kill ZScaler and Start ZScaler app](apps.png)
+
 ## Using a Shell Script
+
 - Open Terminal or whatever terminal you prefer (e.g. iTerm2).
 - Type `git clone https://github.com/bkahlert/kill-zscaler.git`
 - Type `cd kill-zscaler` to change into the newly cloned repository.
