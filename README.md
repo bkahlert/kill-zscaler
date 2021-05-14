@@ -13,7 +13,7 @@ People who prefer apps over commands lines can use
 - Open `Kill ZScaler.app` to kill ZScaler.
 - To use ZScaler again, reboot or open `Start ZScaler.app`.
 
-[![Kill ZScaler and Start ZScaler app](apps.png)
+[![Kill ZScaler and Start ZScaler app](apps.png)]
 
 ## Using a Shell Script
 
