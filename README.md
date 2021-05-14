@@ -17,7 +17,7 @@ People who prefer apps over commands lines can use
 
 ## Using a Shell Script
 
-- Open Terminal or whatever terminal you prefer (e.g. iTerm2).
+- Open Terminal or whatever terminal you prefer (e.g. [iTerm2](https://iterm2.com/)).
 - Type `git clone https://github.com/bkahlert/kill-zscaler.git`
 - Type `cd kill-zscaler` to change into the newly cloned repository.
 - Make sure the scripts are executable by running `chmod +x kill-zscaler.sh start-zscaler.sh`
@@ -25,8 +25,11 @@ People who prefer apps over commands lines can use
 - To use ZScaler again, reboot or type `./start-zscaler.sh`.
 
 ## Using a Shell
-- Open Terminal or whatever terminal you prefer (e.g. iTerm2).
-- Type `find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;` to kill ZScaler.
+
+- Open Terminal or whatever terminal you prefer (e.g. [iTerm2](https://iterm2.com/)).
+-
+Type `find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;`
+to kill ZScaler.
 - To use ZScaler again, reboot or type `open -a /Applications/ZScaler/ZScaler.app --hide; sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;`.
 
 ### Using an Alias
