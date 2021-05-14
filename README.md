@@ -9,7 +9,7 @@ Pick one of the following options to take back control.
 People who prefer apps over commands lines can use
 `Kill ZScaler.app` which is a simple wrapper of the shell script described below.
 
-- [Download this repository as an archive](/bkahlert/kill-zscaler/archive/refs/heads/main.zip).
+- [Download this repository as an archive](https://github.com/bkahlert/kill-zscaler/archive/refs/heads/main.zip).
 - Open `Kill ZScaler.app` to kill ZScaler.
 - To use ZScaler again, reboot or open `Start ZScaler.app`.
 
