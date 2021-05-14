@@ -1,3 +1,3 @@
 #!/bin/sh
-open -a /Applications/ZScaler/ZScaler.app --hide
+open -a /Applications/Zscaler/Zscaler.app --hide
 sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;

@@ -7,11 +7,11 @@
 	<key>CFBundleGetInfoString</key>
 	<string>1.0, Copyright © 2021 Björn Kahlert, MIT licensed</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.bkahlert.StartZScaler</string>
+	<string>com.bkahlert.StartZscaler</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Start ZScaler</string>
+	<string>Start Zscaler</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
