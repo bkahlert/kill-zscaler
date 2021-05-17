@@ -39,7 +39,7 @@ To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) 
 - Open the shell initialization file of your shell
   - Bash: ~/.bashrc
   - ZSH: ~/.zshrc
-  - For more information on read https://medium.com/@rajsek/zsh-bash-startup-files-loading-order-bashrc-zshrc-etc-e30045652f2e or any other appropriate Google
+  - For more information aliases, read https://medium.com/@rajsek/zsh-bash-startup-files-loading-order-bashrc-zshrc-etc-e30045652f2e or any other appropriate Google
     match.
 - Add the contents of `kill-zscaler.alias.txt` or the following lines to it:
   ```shell
