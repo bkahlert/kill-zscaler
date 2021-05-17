@@ -46,6 +46,6 @@ To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) 
   alias start-zscaler="open -a /Applications/Zscaler/Zscaler.app --hide; sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;"
   alias kill-zscaler="find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;"
   ```
-- Open a new shell (or type `source [shell initialization file]` to load your changes)
+- Open a new shell (or type `source ~/.bashrc` / `~/.zshrc` / … to load your changes)
 - Type `kill-zscaler` to kill Zscaler
 - To use Zscaler again, reboot or type `start-zscaler`.
