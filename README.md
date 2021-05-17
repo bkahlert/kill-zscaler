@@ -6,7 +6,7 @@ Pick one of the following options to take back control.
 
 ## Using the App
 
-People who prefer apps over commands lines can use
+People who prefer apps over command lines can use
 `Kill Zscaler.app` which is a simple wrapper of the shell script described below.
 
 - [Download this repository as an archive](https://github.com/bkahlert/kill-zscaler/archive/refs/heads/main.zip).
@@ -27,11 +27,8 @@ People who prefer apps over commands lines can use
 ## Using a Shell
 
 - Open Terminal or whatever terminal you prefer (e.g. [iTerm2](https://iterm2.com/)).
--
-
-Type `find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;`
+- Type `find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;`
 to kill Zscaler.
-
 - To use Zscaler again, reboot or
   type `open -a /Applications/Zscaler/Zscaler.app --hide; sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;`.
 
