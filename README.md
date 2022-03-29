@@ -49,3 +49,36 @@ To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) 
 - Open a new shell (or type `source ~/.bashrc` / `source ~/.zshrc` / … to load your changes)
 - Type `kill-zscaler` to kill Zscaler
 - To use Zscaler again, reboot or type `start-zscaler`.
+
+
+# Sharing Zscaler
+
+To share an existing Zscaler connection you can use [share-zscaler.sh](share-zscaler.sh) as follows:
+```shell
+SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
+SHARE_ZSCALER_HOSTS='
+    example.com
+    foo.bar.internal
+' sudo -E ./share-zscaler.sh
+```
+
+See the script for more information.
+
+## Parallels Mac VM
+
+If you only have a macOS client at hand you can 
+1. Set up a virtual macOS machine using [Parallels](https://www.parallels.com/pd/virtual-machines-for-mac)
+   1. Be sure to limit the allocated resourced (open VM as package and create/edit `config.ini`)  
+      ```ini
+      [Hardware]
+      vCPU.Count=1
+      Memory.Size=2147483648
+      Display.Width=1920
+      Display.Height=1080
+      Display.DPI=96
+      Sound.Enabled=0
+      Network.Type=1
+      ```
+2. Install Zscaler
+3. Connect
+4. Run [share-zscaler.sh](share-zscaler.sh)

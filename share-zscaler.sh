@@ -26,7 +26,15 @@
 #     foo.bar.internal
 # ' sudo -E ./share-zscaler.sh
 #
-# tunnel interface utun3,
+# Without a local copy this script can also be called using curl:
+# SHARE_ZSCALER_TUNNEL_INTERFACE=utun3 \
+# SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
+# SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
+# SHARE_ZSCALER_HOSTS='
+#     example.com
+#     foo.bar.internal
+# ' sudo -E bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"
+#
 # bashsupport disable=BP5001
 
 # Name of the interface used by Zscaler to tunnel the traffic
@@ -48,13 +56,13 @@ declare -r hosts=${SHARE_ZSCALER_HOSTS:-}
 # Resolves the new-line separated list of hostnames to their IP address.
 resolve() {
   declare resolved host
-    for host in ${1?host(s) missing} ; do
-        resolved=$(nslookup "$host" | grep "Non-authoritative answer" -A5 | grep -oE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
-        if [[ $resolved != "" ]]; then
-            printf "%s\t%s\n" "$resolved" "$host"
-            continue
-        fi
-    done
+  for host in ${1?host(s) missing}; do
+    resolved=$(nslookup "$host" | grep "Non-authoritative answer" -A5 | grep -oE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
+    if [[ $resolved != "" ]]; then
+      printf "%s\t%s\n" "$resolved" "$host"
+      continue
+    fi
+  done
 }
 
 # Sets up network address translation.
@@ -69,7 +77,7 @@ main() {
 
   # enable network address translation
   echo "nat on $TUNNEL_INTERFACE from $SOURCE_ADDRESS to any -> ($TUNNEL_INTERFACE)" | pfctl -f - -e || {
-    echo " 💡 Hint: type \`sudo pfctl -s nat\` to see applied NAT rules"
+    echo ' 💡 Hint: type `sudo pfctl -s nat` to see applied NAT rules'
     exit
   }
 
@@ -78,7 +86,7 @@ main() {
   printf "\n"
   printf "1. Add a route to this host:\n"
   printf "\n"
-  printf "   sudo bash -c 'route delete -net %s; route add %s %s'\n" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS"  "${TUNNEL_ADDRESS:-"$(ipconfig getifaddr en0)"}"
+  printf "   sudo bash -c 'route delete -net %s; route add %s %s'\n" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS" "${TUNNEL_ADDRESS:-"$(ipconfig getifaddr en0)"}"
   printf "\n"
   printf "2. Update /etc/hosts:\n"
   printf "\n"
