@@ -7,7 +7,7 @@
 # SHARE_ZSCALER_HOSTS='
 #     example.com
 #     foo.bar.internal
-# ' sudo -E ./share-zscaler.sh
+# ' ./share-zscaler.sh
 #
 # This call will set up network address translation (NAT) so that
 # all requests coming from network 192.168.64.0/24 will have access
@@ -24,7 +24,7 @@
 # SHARE_ZSCALER_HOSTS='
 #     example.com
 #     foo.bar.internal
-# ' sudo -E ./share-zscaler.sh
+# ' ./share-zscaler.sh
 #
 # Without a local copy this script can also be called using curl:
 # SHARE_ZSCALER_TUNNEL_INTERFACE=utun3 \
@@ -33,7 +33,7 @@
 # SHARE_ZSCALER_HOSTS='
 #     example.com
 #     foo.bar.internal
-# ' sudo -E bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"
+# ' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"
 #
 # bashsupport disable=BP5001
 
@@ -54,39 +54,90 @@ declare -r EXTERNAL_ADDRESS=${SHARE_ZSCALER_EXTERNAL_ADDRESS?EXTERNAL_ADDRESS mi
 declare -r hosts=${SHARE_ZSCALER_HOSTS:-}
 
 # Resolves the new-line separated list of hostnames to their IP address.
-resolve() {
+print_resolved_hosts() {
   declare resolved host
   for host in ${1?host(s) missing}; do
     resolved=$(nslookup "$host" | grep "Non-authoritative answer" -A5 | grep -oE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
     if [[ $resolved != "" ]]; then
-      printf "%s\t%s\n" "$resolved" "$host"
+      printf "%s %s\n" "$resolved" "$host"
       continue
     fi
   done
 }
 
+# Prints commands that update /etc/hosts to match the specified
+# resolved hosts.
+print_hosts_update_cmd() {
+  declare -a entry
+  declare ip host
+  echo "${1?hosts missing}" | while IFS=$' ' read -r -a entry; do
+    ip=${entry[0]?ip missing}
+    host=${entry[1]?host missing}
+    # shellcheck disable=SC2016
+    printf 'sudo sed -Ei "" "/.*[[:space:]]+%s/{
+h
+s/.*/%s %s/
+}
+\${
+x
+/^$/{
+s//%s %s/
+H
+}
+x
+}" /etc/hosts
+' "${host//./\.}" "$ip" "$host" "$ip" "$host"
+#    sed -Ei "" "/.*[[:space:]]+${host//./\.}/{
+#h
+#s/.*/$ip $host/
+#}
+#\${
+#x
+#/^$/{
+#s//$ip $host/
+#H
+#}
+#x
+#}" /etc/hosts
+  done
+}
+
 # Sets up network address translation.
 main() {
-  # enables kernel to route packages
-  sysctl -w net.inet.ip.forwarding=1 || exit
+  declare resolved_hosts route_cmd hosts_backup_cmd hosts_update_cmd flushdns_cmd
 
-  pfctl -d
+  # kill Zscaler
+  # find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;
+
+  # start Zscaler
+  # open -a /Applications/Zscaler/Zscaler.app --hide; sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;
+
+  # enables kernel to route packages
+  sudo sysctl -w net.inet.ip.forwarding=1 || exit
+
+  sudo pfctl -d
 
   # flush all rules
-  pfctl -F all || exit
+  sudo pfctl -F all || exit
 
   # enable network address translation
-  echo "nat on $TUNNEL_INTERFACE from $SOURCE_ADDRESS to any -> ($TUNNEL_INTERFACE)" | pfctl -f - -e || {
-    echo ' 💡 Hint: type `sudo pfctl -s nat` to see applied NAT rules'
+  sudo bash -c "echo 'nat on $TUNNEL_INTERFACE from $SOURCE_ADDRESS to any -> ($TUNNEL_INTERFACE)' | pfctl -f - -e" || {
+    echo " 💡 Hint: type \`sudo pfctl -s nat\` to see applied NAT rules"
     exit
   }
+
+  resolved_hosts=$(print_resolved_hosts "$hosts")
+  route_cmd=$(printf "sudo bash -c 'route delete -net %s; route add %s %s'" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS" "${TUNNEL_ADDRESS:-"$(ipconfig getifaddr en0)"}")
+  hosts_backup_cmd='sudo cp /etc/hosts /etc/hosts.backup'
+  hosts_update_cmd=$(print_hosts_update_cmd "$resolved_hosts")
+  flushdns_cmd='dscacheutil -flushcache'
 
   printf "\n"
   printf "In order to route your traffic properly\n"
   printf "\n"
   printf "1. Add a route to this host:\n"
   printf "\n"
-  printf "   sudo bash -c 'route delete -net %s; route add %s %s'\n" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS" "${TUNNEL_ADDRESS:-"$(ipconfig getifaddr en0)"}"
+  printf "   %s\n" "$route_cmd"
   printf "\n"
   printf "2. Update /etc/hosts:\n"
   printf "\n"
@@ -94,10 +145,18 @@ main() {
   printf '   "${VISUAL:-${EDITOR:-nano}}" /etc/hosts\n'
   printf "\n"
   printf '   Make sure it contains the following entries:\n'
-  printf "\n"
   printf "# Added by shared Zscaler\n"
-  printf "%s\n" "$(resolve "$hosts")"
+  printf "%s\n" "$resolved_hosts"
   printf "# End of section\n"
+  printf "\n"
+  printf "\n"
+  printf '3. Flush your DNS cache:\n'
+  printf "\n"
+  printf "   %s\n" "$flushdns_cmd"
+  printf "\n"
+  printf "%s\n%s\n%s\n%s\n" "$route_cmd" "$hosts_backup_cmd" "$hosts_update_cmd" "$flushdns_cmd" | pbcopy
+  printf "OR check the contents of your clipboard.\n"
+  printf "   It should contain all the necessary commands to apply the just explained changes.\n"
   printf "\n"
 }
 

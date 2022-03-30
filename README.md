@@ -59,7 +59,7 @@ SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='
     example.com
     foo.bar.internal
-' sudo -E ./share-zscaler.sh
+' ./share-zscaler.sh
 ```
 
 See the script for more information.
