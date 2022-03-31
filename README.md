@@ -126,6 +126,50 @@ Optionally you can set the name of your VM in
 1. System Preferences → Network → Ethernet → Advanced... → WINS → NetBIOS Name
 2. System Preferences → Sharing → Computer Name
 
+## Remote Execution
+
+This section describes the necessary steps to run `share-zscaler.sh` on your
+local machine instead of the virtual Zscaler machine using SSH.
+
+### Preparation
+
+#### On your virtual machine
+1. Activate SSH by checking System Preferences → Sharing → Remote Login
+
+#### On your local machine
+
+1. [Create an SSH key](https://www.google.com/search?q=create+ssh+key+macos) or use an existing one
+2. Copy the public key of your just created key pair to your Zscaler machine:
+   ```shell
+   ssh-copy-id -i ~/.ssh/id_rsa zscaler@Zscaler.local
+   ```
+   *This snippet assumes that your Zscaler host has the name `Zscaler` and your user account on that machine is `zscaler`.*
+3. Check if you can log in:
+   ```shell
+   ssh zscaler@Zscaler.local printenv
+   ```
+   If the output shows the environment variables of your Zscaler host, all is fine.
+
+### Execution
+
+The example used in this chapter will change to the following in order to be executed
+on the host `Zscaler` with user `zscaler`:
+```shell
+ssh -t zscaler@Zscaler.local '
+SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
+SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
+SHARE_ZSCALER_HOSTS='"'"'
+    example.com
+    foo.bar.internal
+'"'"' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"'
+```
+
+You will be prompted for the password of user `zscaler`.  
+After you ran the command you'll have the command to be executed locally in your clipboard and can just paste it.
+
+You can even call `pbpaste | bash` to run that script directly.
+
+
 ## Troubleshooting
 - You can run the setup script as many times as you like.
 - The output script to run on your local machine updates your name resolution accordingly,
