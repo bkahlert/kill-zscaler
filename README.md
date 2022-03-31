@@ -1,3 +1,5 @@
+*Instructions on [how to share the connection of a Zscaler installed in a virtual machine](#sharing-zscaler) can be found below.*
+
 # Killing Zscaler on macOS
 
 Zscaler can be annoying if you're trying to stop it. Despite have administrative rights, usually it asks for a password.
@@ -85,26 +87,40 @@ SHARE_ZSCALER_HOSTS='
 
 If you only have a macOS client at hand you can set up a virtual macOS machine using [Parallels](https://www.parallels.com/pd/virtual-machines-for-mac).
 
-The following script will set up the virtual macOS machine `Zscaler.macvm` in your Parallels directory with minimal resources:
-```shell
-declare -r PARALLELS=/Applications/Parallels\ Desktop.app
-declare -r VMDIR=$HOME/Parallels
-declare -r NAME=Zscaler
-curl -LfSo "$VMDIR/macOS.ipsw" "$("$PARALLELS"/Contents/MacOS/prl_macvm_create --getipswurl)"
-"$PARALLELS"/Contents/MacOS/prl_macvm_create "$VMDIR/macOS.ipsw" "$VMDIR/$NAME.macvm" --disksize 30000000000
-cat <<CONFIG >"$VMDIR/$NAME.macvm/config.ini"
-[Hardware]
-vCPU.Count=1
-Memory.Size=2147483648
-Display.Width=1920
-Display.Height=1080
-Display.DPI=96
-Sound.Enabled=0
-Network.Type=1
-CONFIG
-open "$VMDIR"
-open -a "$PARALLELS" "$VMDIR/$NAME.macvm"
-```
+1. [Install Parallels](https://www.parallels.com/products/desktop/trial/)
+2. Set up a virtual machine
+   1. The following scripts sets up a macOS machine with minimal footprint:
+      ```shell
+      declare -r PARALLELS=/Applications/Parallels\ Desktop.app
+      declare -r VMDIR=$HOME/Parallels
+      declare -r NAME=Zscaler
+      curl -LfSo "$VMDIR/macOS.ipsw" "$("$PARALLELS"/Contents/MacOS/prl_macvm_create --getipswurl)"
+      "$PARALLELS"/Contents/MacOS/prl_macvm_create "$VMDIR/macOS.ipsw" "$VMDIR/$NAME.macvm" --disksize 30000000000
+      cat <<CONFIG >"$VMDIR/$NAME.macvm/config.ini"
+      [Hardware]
+      vCPU.Count=1
+      Memory.Size=2147483648
+      Display.Width=1920
+      Display.Height=1080
+      Display.DPI=96
+      Sound.Enabled=0
+      Network.Type=1
+      CONFIG
+      open "$VMDIR"
+      open -a "$PARALLELS" "$VMDIR/$NAME.macvm"
+      ```
+   2. Create a macOS user
+   3. Install Parallels Tools and reboot
+   4. Install Zscaler
+   5. Login
+3. Establish connection
+   1. Start Zscaler (if not already running)
+   2. [Run share-zscaler.sh](#sharing-zscaler)
+4. Use connection
+   1. On your local machine open a terminal
+   2. Paste the script (that was copied in the previous step to your clipboard) in the terminal and run it
+
+**You can now connect to all hosts you listed in step 2** 🎉
 
 Optionally you can set the name of your VM in
 1. System Preferences → Network → Ethernet → Advanced... → WINS → NetBIOS Name
