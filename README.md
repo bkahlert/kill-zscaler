@@ -53,8 +53,10 @@ To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) 
 
 # Sharing Zscaler
 
-To share an existing Zscaler connection you can use [share-zscaler.sh](share-zscaler.sh) as follows:
+To share an existing Zscaler connection you can use [share-zscaler.sh](share-zscaler.sh) on the machine
+with Zscaler installed as follows:
 ```shell
+SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
 SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='
     example.com
@@ -62,23 +64,44 @@ SHARE_ZSCALER_HOSTS='
 ' ./share-zscaler.sh
 ```
 
-See the script for more information.
+- The script will set up network address translation (NAT) so that traffic
+from 192.168.64.x will be properly routed.
+- It also prints instructions on how to configure clients to actually 
+pass their requests to your Zscaler machine for the specified domains.
+- It copies a script to your clipboard that applies all just mentioned steps.
 
-## Parallels Mac VM
+If you prefer to have a one-line without having to download anything you can use the following
+command *at your own risk*:
+```shell
+SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
+SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
+SHARE_ZSCALER_HOSTS='
+    example.com
+    foo.bar.internal
+' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"
+```
 
-If you only have a macOS client at hand you can 
-1. Set up a virtual macOS machine using [Parallels](https://www.parallels.com/pd/virtual-machines-for-mac)
-   1. Be sure to limit the allocated resourced (open VM as package and create/edit `config.ini`)  
-      ```ini
-      [Hardware]
-      vCPU.Count=1
-      Memory.Size=2147483648
-      Display.Width=1920
-      Display.Height=1080
-      Display.DPI=96
-      Sound.Enabled=0
-      Network.Type=1
-      ```
-2. Install Zscaler
-3. Connect
-4. Run [share-zscaler.sh](share-zscaler.sh)
+## Parallels macOS VM
+
+If you only have a macOS client at hand you can set up a virtual macOS machine using [Parallels](https://www.parallels.com/pd/virtual-machines-for-mac).
+
+The following script will set up the virtual macOS machine `Zscaler.macvm` in your Parallels directory with minimal resources:
+```shell
+declare -r PARALLELS=/Applications/Parallels\ Desktop.app
+declare -r VMDIR=$HOME/Parallels
+declare -r NAME=Zscaler
+curl -LfSo "$VMDIR/macOS.ipsw" "$("$PARALLELS"/Contents/MacOS/prl_macvm_create --getipswurl)"
+"$PARALLELS"/Contents/MacOS/prl_macvm_create "$VMDIR/macOS.ipsw" "$VMDIR/$NAME.macvm" --disksize 30000000000
+cat <<CONFIG >"$VMDIR/$NAME.macvm/config.ini"
+[Hardware]
+vCPU.Count=1
+Memory.Size=2147483648
+Display.Width=1920
+Display.Height=1080
+Display.DPI=96
+Sound.Enabled=0
+Network.Type=1
+CONFIG
+open "$VMDIR"
+open -a "$PARALLELS" "$VMDIR/$NAME.macvm"
+```
