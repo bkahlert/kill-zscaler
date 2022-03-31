@@ -66,11 +66,11 @@ SHARE_ZSCALER_HOSTS='
 
 - The script will set up network address translation (NAT) so that traffic
 from 192.168.64.x will be properly routed.
-- It also prints instructions on how to configure clients to actually 
+- It prints instructions on how to configure clients to actually 
 pass their requests to your Zscaler machine for the specified domains.
 - It copies a script to your clipboard that applies all just mentioned steps.
 
-If you prefer to have a one-line without having to download anything you can use the following
+If you prefer to have a one-liner without having to download anything you can use the following
 command *at your own risk*:
 ```shell
 SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
@@ -105,3 +105,18 @@ CONFIG
 open "$VMDIR"
 open -a "$PARALLELS" "$VMDIR/$NAME.macvm"
 ```
+
+Optionally you can set the name of your VM in
+1. System Preferences → Network → Ethernet → Advanced... → WINS → NetBIOS Name
+2. System Preferences → Sharing → Computer Name
+
+## Troubleshooting
+- You can run the setup script as many times as you like.
+- The output script to run on your local machine updates your name resolution accordingly,
+  that is, it updates existing hosts and adds new ones.
+- You will very likely have to update `SHARE_ZSCALER_SOURCE_ADDRESS` to the network used by your Parallels installation.
+  - You can look it up by opening System Preferences → Network → Ethernet → IP Address
+  - As an example: if the screen shows `192.168.42.3` you'll have to use `SHARE_ZSCALER_SOURCE_ADDRESS=192.168.42.0/24`
+- If you happen to have no access anymore
+  - check if Zscaler is actually connected
+  - run (1) your customized `share-zscaler.sh` call on the VM and (2) its output script on your local machine again.
