@@ -144,9 +144,11 @@ local machine instead of the virtual Zscaler machine using SSH.
    ```
 3. Optionally prepare a script with the following contents to lock your screen
    ```bash
-   cat <
+   cat << 'LOCK_SCREEN' > ~/Desktop/lock-screen
    #!/bin/bash
    osascript -e 'tell application "System Events" to keystroke "q" using {command down,control down}'
+   LOCK_SCREEN
+   chmod +x ~/Desktop/lock-screen
    ```
    and run it on login via System Preferences → *Choose your user* → Login items → + → *Select your lock screen script*  
    Don't forget to make it executable using `chmod +x` and to run it once to provide it with sufficient permissions.
