@@ -135,6 +135,21 @@ local machine instead of the virtual Zscaler machine using SSH.
 
 #### On your virtual machine
 1. Activate SSH by checking System Preferences → Sharing → Remote Login
+2. Optionally extend your sudoers so that you may run `sysctl` and `pfctl` without having to enter your password:
+   ```shell
+   (
+   echo "$(whoami) ALL=NOPASSWD: /usr/sbin/sysctl *"
+   echo "$(whoami) ALL=NOPASSWD: /sbin/pfctl *"
+   ) | sudo tee /etc/sudoers.d/zscaler
+   ```
+3. Optionally prepare a script with the following contents to lock your screen
+   ```bash
+   cat <
+   #!/bin/bash
+   osascript -e 'tell application "System Events" to keystroke "q" using {command down,control down}'
+   ```
+   and run it on login via System Preferences → *Choose your user* → Login items → + → *Select your lock screen script*  
+   Don't forget to make it executable using `chmod +x` and to run it once to provide it with sufficient permissions.
 
 #### On your local machine
 

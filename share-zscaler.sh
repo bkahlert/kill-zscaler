@@ -53,11 +53,16 @@ declare -r EXTERNAL_ADDRESS=${SHARE_ZSCALER_EXTERNAL_ADDRESS?EXTERNAL_ADDRESS mi
 # The hosts you want to be able to connect to.
 declare -r hosts=${SHARE_ZSCALER_HOSTS:-}
 
+# Resolves the given hostname
+print_resolved_host() {
+  host "${1?host missing}" | awk '/has address/ { print $4 ; exit }'
+}
+
 # Resolves the new-line separated list of hostnames to their IP address.
 print_resolved_hosts() {
   declare resolved host
   for host in ${1?host(s) missing}; do
-    resolved=$(nslookup "$host" | grep "Non-authoritative answer" -A5 | grep -oE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
+    resolved=$(print_resolved_host "$host")
     if [[ $resolved != "" ]]; then
       printf "%s %s\n" "$resolved" "$host"
       continue
@@ -65,7 +70,7 @@ print_resolved_hosts() {
   done
 }
 
-# Prints commands that update /etc/hosts to match the specified
+# Prints the commands that update /etc/hosts to match the specified
 # resolved hosts.
 print_hosts_update_cmd() {
   declare -a entry
@@ -87,18 +92,6 @@ H
 x
 }" /etc/hosts
 ' "${host//./\.}" "$ip" "$host" "$ip" "$host"
-#    sed -Ei "" "/.*[[:space:]]+${host//./\.}/{
-#h
-#s/.*/$ip $host/
-#}
-#\${
-#x
-#/^$/{
-#s//$ip $host/
-#H
-#}
-#x
-#}" /etc/hosts
   done
 }
 
@@ -106,25 +99,23 @@ x
 main() {
   declare resolved_hosts route_cmd hosts_backup_cmd hosts_update_cmd flushdns_cmd
 
-  # kill Zscaler
-  # find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;
-
-  # start Zscaler
-  # open -a /Applications/Zscaler/Zscaler.app --hide; sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;
-
   # enables kernel to route packages
   sudo sysctl -w net.inet.ip.forwarding=1 || exit
 
-  sudo pfctl -d
+  # disable network address translation
+  sudo pfctl -d || true
 
   # flush all rules
   sudo pfctl -F all || exit
 
   # enable network address translation
-  sudo bash -c "echo 'nat on $TUNNEL_INTERFACE from $SOURCE_ADDRESS to any -> ($TUNNEL_INTERFACE)' | pfctl -f - -e" || {
+  declare nat_file && nat_file=$(mktemp)
+  echo "nat on $TUNNEL_INTERFACE from $SOURCE_ADDRESS to any -> ($TUNNEL_INTERFACE)" > "$nat_file"
+  sudo pfctl -f "$nat_file" -e || {
     echo " 💡 Hint: type \`sudo pfctl -s nat\` to see applied NAT rules"
     exit
   }
+  rm "$nat_file"
 
   resolved_hosts=$(print_resolved_hosts "$hosts")
   route_cmd=$(printf "sudo bash -c 'route delete -net %s; route add %s %s'" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS" "${TUNNEL_ADDRESS:-"$(ipconfig getifaddr en0)"}")
