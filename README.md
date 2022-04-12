@@ -173,6 +173,7 @@ The example used in this chapter will change to the following in order to be exe
 on the host `Zscaler` with user `zscaler`:
 ```shell
 ssh -t zscaler@Zscaler.local '
+SHARE_ZSCALER_TUNNEL_ADDRESS="$(lsof -i TCP -s tcp:established -n | awk '"'"'/:ssh->/ { print $9 ; exit }'"'"' | awk -F: '"'"'{ print $1 ; exit }'"'"')" \
 SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
 SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='"'"'
@@ -181,7 +182,7 @@ SHARE_ZSCALER_HOSTS='"'"'
 '"'"' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"'
 ```
 
-You will be prompted for the password of user `zscaler`.  
+You will be prompted for the password of user `zscaler` (unless you did the optional [sudoers configuration](#on-your-virtual-machine)).  
 After you ran the command you'll have the command to be executed locally in your clipboard and can just paste it.
 
 You can even call `pbpaste | bash` to run that script directly.
