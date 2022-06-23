@@ -174,7 +174,7 @@ on the host `Zscaler` with user `zscaler`:
 ```shell
 ssh -4t zscaler@Zscaler.local '
 SHARE_ZSCALER_TUNNEL_ADDRESS="$(lsof -i TCP -s tcp:established -n | awk '"'"'/:ssh->/ { print $9 ; exit }'"'"' | awk -F: '"'"'{ print $1 ; exit }'"'"')" \
-SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
+SHARE_ZSCALER_SOURCE_ADDRESS=$(ipconfig getifaddr en0)/24 \
 SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='"'"'
     example.com
