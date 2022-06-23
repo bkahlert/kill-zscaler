@@ -58,7 +58,7 @@ To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) 
 To share an existing Zscaler connection you can use [share-zscaler.sh](share-zscaler.sh) on the machine
 with Zscaler installed as follows:
 ```shell
-SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
+SHARE_ZSCALER_SOURCE_ADDRESS=$(ipconfig getifaddr en0)/24 \
 SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='
     example.com
@@ -67,7 +67,7 @@ SHARE_ZSCALER_HOSTS='
 ```
 
 - The script will set up network address translation (NAT) so that traffic
-from 192.168.64.x will be properly routed.
+from your virtual machine will be properly routed.
 - It prints instructions on how to configure clients to actually 
 pass their requests to your Zscaler machine for the specified domains.
 - It copies a script to your clipboard that applies all just mentioned steps.
@@ -75,7 +75,7 @@ pass their requests to your Zscaler machine for the specified domains.
 If you prefer to have a one-liner without having to download anything you can use the following
 command *at your own risk*:
 ```shell
-SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
+SHARE_ZSCALER_SOURCE_ADDRESS=$(ipconfig getifaddr en0)/24 \
 SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='
     example.com
