@@ -3,55 +3,52 @@
 # A script to help sharing a Zscaler tunnel.
 #
 # Usage:
-# SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 # SHARE_ZSCALER_HOSTS='
-#     example.com
 #     foo.bar.internal
+#     example.com
 # ' ./share-zscaler.sh
 #
 # This call will set up network address translation (NAT) so that
-# all requests coming from network 192.168.64.0/24 will have access
-# to network 10.100.0.0/16 using the tunnel interface utun3.
+# all requests coming from the network of interface en0 will have access
+# to the network the first resolved host routes to
+# (e.g. 10.100.0.0/16 using the tunnel interface utun3).
 #
 # The script will also output necessary steps on how to configure
 # your local host to actually pass requests to your tunnel endpoint
-# for the hosts example.com and foo.bar.internal.
+# for the hosts foo.bar.internal and example.com.
 #
 # The above example corresponds to the full call:
 # SHARE_ZSCALER_TUNNEL_INTERFACE=utun3 \
 # SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 # SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
 # SHARE_ZSCALER_HOSTS='
-#     example.com
 #     foo.bar.internal
+#     example.com
 # ' ./share-zscaler.sh
 #
 # Without a local copy this script can also be called using curl:
-# SHARE_ZSCALER_TUNNEL_INTERFACE=utun3 \
-# SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
-# SHARE_ZSCALER_SOURCE_ADDRESS=192.168.64.0/24 \
 # SHARE_ZSCALER_HOSTS='
-#     example.com
 #     foo.bar.internal
+#     example.com
 # ' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"
 #
 # bashsupport disable=BP5001
 
-# Name of the interface used by Zscaler to tunnel the traffic
-# Use `ifconfig` and look the the entry containing "inet 100.64.0.1 --> 100.64.0.1 netmask 0xffff0000"
-declare -r TUNNEL_INTERFACE=${SHARE_ZSCALER_TUNNEL_INTERFACE:-utun3}
+# The IP of the (virtual) host with Zscaler installed (default: IP of en0 interface)
+declare -r TUNNEL_ADDRESS=${SHARE_ZSCALER_TUNNEL_ADDRESS:-$(ipconfig getifaddr en0)}
 
-# The IP of the host with Zscaler installed (typically the VM guest)
-# Leave empty to attempt to find out automatically
-declare -r TUNNEL_ADDRESS=${SHARE_ZSCALER_TUNNEL_ADDRESS:-}
-
-# The network you want to share (typically the one shared by your VM host and guest)
-declare -r SOURCE_ADDRESS=${SHARE_ZSCALER_SOURCE_ADDRESS:-192.168.64.0/24}
-
-declare -r EXTERNAL_ADDRESS=${SHARE_ZSCALER_EXTERNAL_ADDRESS?EXTERNAL_ADDRESS missing; example: \`SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16\`}
+# The network/IP you want to share (default: IP of en0 interface)
+declare -r SOURCE_ADDRESS=${SHARE_ZSCALER_SOURCE_ADDRESS:-$(ipconfig getifaddr en0)/24}
 
 # The hosts you want to be able to connect to.
-declare -r hosts=${SHARE_ZSCALER_HOSTS:-}
+declare -r hosts=${SHARE_ZSCALER_HOSTS?SHARE_ZSCALER_HOSTS is not set}
+
+# The network/IP to tunnel traffic to (e.g. "10.100.0.0/16", default: responsible destination for first resolved host)
+declare EXTERNAL_ADDRESS=${SHARE_ZSCALER_EXTERNAL_ADDRESS:-}
+
+# The interface name to tunnel traffic to (e.g. "utun3", default: responsible interface for external address)
+# Use `ifconfig` and look for the entry containing "inet 10.100.0.1 --> 10.100.0.1 netmask 0xffff0000"
+declare TUNNEL_INTERFACE=${SHARE_ZSCALER_TUNNEL_INTERFACE:-}
 
 # Resolves the given hostname
 print_resolved_host() {
@@ -68,6 +65,19 @@ print_resolved_hosts() {
       continue
     fi
   done
+}
+
+# Resolves the new-line separated list of hostnames until the first could be resolved and returns its IP.
+print_first_resolved_host() {
+  declare resolved host
+  for host in ${1?host(s) missing}; do
+    resolved=$(print_resolved_host "$host")
+    if [[ $resolved != "" ]]; then
+      printf "%s\n" "$resolved"
+      return 0
+    fi
+  done
+  return 1
 }
 
 # Prints the commands that update /etc/hosts to match the specified
@@ -99,6 +109,18 @@ x
 main() {
   declare resolved_hosts route_cmd hosts_backup_cmd hosts_update_cmd flushdns_cmd
 
+  declare first_resolved_host route_info
+  first_resolved_host=$(print_first_resolved_host "$hosts") || {
+    echo "Could not resolve any of the given hosts: $hosts"
+    exit 1
+  }
+  route_info=$(route get "$first_resolved_host") || {
+    echo "Could not get route information for $first_resolved_host"
+    exit 1
+  }
+  EXTERNAL_ADDRESS=${EXTERNAL_ADDRESS:-$(echo "$route_info" | grep 'destination:' | sed -E 's,.*:[[:space:]]*,,')}
+  TUNNEL_INTERFACE=${TUNNEL_INTERFACE:-$(echo "$route_info" | grep 'interface:' | sed -E 's,.*:[[:space:]]*,,')}
+
   # enables kernel to route packages
   sudo sysctl -w net.inet.ip.forwarding=1 || exit
 
@@ -118,7 +140,7 @@ main() {
   rm "$nat_file"
 
   resolved_hosts=$(print_resolved_hosts "$hosts")
-  route_cmd=$(printf "sudo bash -c 'route delete -net %s; route add %s %s'" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS" "${TUNNEL_ADDRESS:-"$(ipconfig getifaddr en0)"}")
+  route_cmd=$(printf "sudo bash -c 'route delete -net %s; route add -net %s -host %s'" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS" "$TUNNEL_ADDRESS")
   hosts_backup_cmd='sudo cp /etc/hosts /etc/hosts.backup'
   hosts_update_cmd=$(print_hosts_update_cmd "$resolved_hosts")
   flushdns_cmd='dscacheutil -flushcache'

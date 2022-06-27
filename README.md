@@ -8,7 +8,7 @@ Pick one of the following options to take back control.
 
 ## Using the App
 
-People who prefer apps over command lines can use
+People who prefer to use apps over command lines, can use
 `Kill Zscaler.app` which is a simple wrapper of the shell script described below.
 
 - [Download this repository as an archive](https://github.com/bkahlert/kill-zscaler/archive/refs/heads/main.zip).
@@ -58,11 +58,9 @@ To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) 
 To share an existing Zscaler connection you can use [share-zscaler.sh](share-zscaler.sh) on the machine
 with Zscaler installed as follows:
 ```shell
-SHARE_ZSCALER_SOURCE_ADDRESS=$(ipconfig getifaddr en0)/24 \
-SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='
-    example.com
     foo.bar.internal
+    example.com
 ' ./share-zscaler.sh
 ```
 
@@ -75,11 +73,9 @@ pass their requests to your Zscaler machine for the specified domains.
 If you prefer to have a one-liner without having to download anything you can use the following
 command *at your own risk*:
 ```shell
-SHARE_ZSCALER_SOURCE_ADDRESS=$(ipconfig getifaddr en0)/24 \
-SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='
-    example.com
     foo.bar.internal
+    example.com
 ' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"
 ```
 
@@ -95,7 +91,7 @@ If you only have a macOS client at hand you can set up a virtual macOS machine u
       declare -r VMDIR=$HOME/Parallels
       declare -r NAME=Zscaler
       curl -LfSo "$VMDIR/macOS.ipsw" "$("$PARALLELS"/Contents/MacOS/prl_macvm_create --getipswurl)"
-      "$PARALLELS"/Contents/MacOS/prl_macvm_create "$VMDIR/macOS.ipsw" "$VMDIR/$NAME.macvm" --disksize 30000000000
+      "$PARALLELS"/Contents/MacOS/prl_macvm_create "$VMDIR/macOS.ipsw" "$VMDIR/$NAME.macvm" --disksize 40000000000
       cat <<CONFIG >"$VMDIR/$NAME.macvm/config.ini"
       [Hardware]
       vCPU.Count=1
@@ -109,10 +105,14 @@ If you only have a macOS client at hand you can set up a virtual macOS machine u
       open "$VMDIR"
       open -a "$PARALLELS" "$VMDIR/$NAME.macvm"
       ```
-   2. Create a macOS user
-   3. Install Parallels Tools and reboot
-   4. Install Zscaler
-   5. Login
+      Take the chance to customize the above settings to your requirements.   
+      **At the time of writing, the disk size cannot be altered later.**  
+      40GB disk space (see `--disksize` argument) are recommended.  
+      32GB disk space are the bare minimum.  
+   3. Create a macOS user
+   4. Install Parallels Tools and reboot
+   5. Install Zscaler
+   6. Login
 3. Establish connection
    1. Start Zscaler (if not already running)
    2. [Run share-zscaler.sh](#sharing-zscaler)
@@ -173,12 +173,9 @@ The example used in this chapter will change to the following in order to be exe
 on the host `Zscaler` with user `zscaler`:
 ```shell
 ssh -4t zscaler@Zscaler.local '
-SHARE_ZSCALER_TUNNEL_ADDRESS="$(lsof -i TCP -s tcp:established -n | awk '"'"'/:ssh->/ { print $9 ; exit }'"'"' | awk -F: '"'"'{ print $1 ; exit }'"'"')" \
-SHARE_ZSCALER_SOURCE_ADDRESS=$(ipconfig getifaddr en0)/24 \
-SHARE_ZSCALER_EXTERNAL_ADDRESS=10.100.0.0/16 \
 SHARE_ZSCALER_HOSTS='"'"'
-    example.com
     foo.bar.internal
+    example.com
 '"'"' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"'
 ```
 
