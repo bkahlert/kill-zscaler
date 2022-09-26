@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# A script to help sharing a Zscaler tunnel.
+# A script to share a Zscaler tunnel.
 #
 # Usage:
 # SHARE_ZSCALER_HOSTS='
@@ -8,12 +8,12 @@
 #     example.com
 # ' ./share-zscaler.sh
 #
-# This call will set up network address translation (NAT) so that
-# all requests coming from the network of interface en0 will have access
+# The script sets up network address translation (NAT) so that
+# all requests coming from the network of interface en0 have access
 # to the network the first resolved host routes to
 # (e.g. 10.100.0.0/16 using the tunnel interface utun3).
 #
-# The script will also output necessary steps on how to configure
+# The script also outputs necessary steps on how to configure
 # your local host to actually pass requests to your tunnel endpoint
 # for the hosts foo.bar.internal and example.com.
 #
@@ -49,6 +49,22 @@ declare EXTERNAL_ADDRESS=${SHARE_ZSCALER_EXTERNAL_ADDRESS:-}
 # The interface name to tunnel traffic to (e.g. "utun3", default: responsible interface for external address)
 # Use `ifconfig` and look for the entry containing "inet 10.100.0.1 --> 10.100.0.1 netmask 0xffff0000"
 declare TUNNEL_INTERFACE=${SHARE_ZSCALER_TUNNEL_INTERFACE:-}
+
+# Executes the passed command line while prefixing the output with #
+comment_run() {
+   "$@" | sed 's/^/# /'
+}
+
+# Prints error and exits with 1
+die() {
+  {
+  tput setaf 1
+  printf '%s' "$*"
+  tput sgr0
+  printf '\n'
+  } >&2
+  exit 1
+}
 
 # Resolves the given hostname
 print_resolved_host() {
@@ -111,33 +127,34 @@ main() {
 
   declare first_resolved_host route_info
   first_resolved_host=$(print_first_resolved_host "$hosts") || {
-    echo "Could not resolve any of the given hosts: $hosts"
-    exit 1
+    die "Failed to resolve any of the given hosts: $hosts"
   }
   route_info=$(route get "$first_resolved_host") || {
-    echo "Could not get route information for $first_resolved_host"
-    exit 1
+    die "Failed to get route information for $first_resolved_host"
   }
   EXTERNAL_ADDRESS=${EXTERNAL_ADDRESS:-$(echo "$route_info" | grep 'destination:' | sed -E 's,.*:[[:space:]]*,,')}
   TUNNEL_INTERFACE=${TUNNEL_INTERFACE:-$(echo "$route_info" | grep 'interface:' | sed -E 's,.*:[[:space:]]*,,')}
 
   # enables kernel to route packages
-  sudo sysctl -w net.inet.ip.forwarding=1 || exit
+  comment_run sudo sysctl -w net.inet.ip.forwarding=1 || {
+    die "Failed to enable routing packages"
+  }
 
   # disable network address translation
-  sudo pfctl -d || true
+  comment_run sudo pfctl -d || true
 
   # flush all rules
-  sudo pfctl -F all || exit
+  comment_run sudo pfctl -F all || {
+    die "Failed to flush all rules"
+  }
 
   # enable network address translation
   declare nat_file && nat_file=$(mktemp)
   echo "nat on $TUNNEL_INTERFACE from $SOURCE_ADDRESS to any -> ($TUNNEL_INTERFACE)" > "$nat_file"
-  sudo pfctl -f "$nat_file" -e || {
-    echo " 💡 Hint: type \`sudo pfctl -s nat\` to see applied NAT rules"
-    exit
+  comment_run sudo pfctl -f "$nat_file" -e || {
+    die " 💡 Hint: type \`sudo pfctl -s nat\` to see applied NAT rules"
   }
-  rm "$nat_file"
+  comment_run rm "$nat_file"
 
   resolved_hosts=$(print_resolved_hosts "$hosts")
   route_cmd=$(printf "sudo bash -c 'route delete -net %s; route add -net %s -host %s'" "$EXTERNAL_ADDRESS" "$EXTERNAL_ADDRESS" "$TUNNEL_ADDRESS")
@@ -145,32 +162,10 @@ main() {
   hosts_update_cmd=$(print_hosts_update_cmd "$resolved_hosts")
   flushdns_cmd='dscacheutil -flushcache'
 
-  printf "\n"
-  printf "In order to route your traffic properly\n"
-  printf "\n"
-  printf "1. Add a route to this host:\n"
-  printf "\n"
-  printf "   %s\n" "$route_cmd"
-  printf "\n"
-  printf "2. Update /etc/hosts:\n"
-  printf "\n"
-  # shellcheck disable=SC2016
-  printf '   "${VISUAL:-${EDITOR:-nano}}" /etc/hosts\n'
-  printf "\n"
-  printf '   Make sure it contains the following entries:\n'
-  printf "# Added by shared Zscaler\n"
-  printf "%s\n" "$resolved_hosts"
-  printf "# End of section\n"
-  printf "\n"
-  printf "\n"
-  printf '3. Flush your DNS cache:\n'
-  printf "\n"
-  printf "   %s\n" "$flushdns_cmd"
-  printf "\n"
-  printf "%s\n%s\n%s\n%s\n" "$route_cmd" "$hosts_backup_cmd" "$hosts_update_cmd" "$flushdns_cmd" | pbcopy
-  printf "OR check the contents of your clipboard.\n"
-  printf "   It should contain all the necessary commands to apply the just explained changes.\n"
-  printf "\n"
+  comment_run printf "\n"
+  comment_run printf "To route your traffic, run the following script, by piping it to bash:\n"
+  comment_run printf "\n"
+  printf "%s\n%s\n%s\n%s\n" "$route_cmd" "$hosts_backup_cmd" "$hosts_update_cmd" "$flushdns_cmd"
 }
 
 main "$@"
