@@ -55,28 +55,30 @@ To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) 
 
 # Sharing Zscaler
 
-To share an existing Zscaler connection you can use [share-zscaler.sh](share-zscaler.sh) on the machine
+To share an existing Zscaler VPN tunnel you can use [share-zscaler.v2.sh](share-zscaler.v2.sh) on the machine
 with Zscaler installed as follows:
 ```shell
-SHARE_ZSCALER_HOSTS='
-    foo.bar.internal
-    example.com
-' ./share-zscaler.sh
+./share-zscaler.sh \
+  --probe foo.bar.internal \
+  --domain internal
 ```
 
-- The script will set up network address translation (NAT) so that traffic
-from your virtual machine will be properly routed.
-- It prints instructions on how to configure clients to actually 
-pass their requests to your Zscaler machine for the specified domains.
-- It copies a script to your clipboard that applies all just mentioned steps.
+- The script sets up network address translation (NAT) on the VPN client machine
+  so that its VPN tunnel can be shared.
+  - The `--prope` argument can be any hostname you want to connect to using the VPN tunnel.
+    It's used to determine the connection details of your VPN connection.
+  - The domains specified with one or more `--domain` arguments are used to
+    customize the DNS name resolution on your host.
+    This makes your host use your VPN client's name resolution for the specified domains (and sub-domains).
+- It prints a configuration script that needs to be run on your host to make it use the just shared tunnel. 
 
 If you prefer to have a one-liner without having to download anything you can use the following
 command *at your own risk*:
+
 ```shell
-SHARE_ZSCALER_HOSTS='
-    foo.bar.internal
-    example.com
-' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"
+bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.v2.sh)" -- \
+  --probe foo.bar.internal \
+  --domain internal
 ```
 
 ## Parallels macOS VM
@@ -118,17 +120,17 @@ If you only have a macOS client at hand you can set up a virtual macOS machine u
    2. [Run share-zscaler.sh](#sharing-zscaler)
 4. Use connection
    1. On your local machine open a terminal
-   2. Paste the script (that was copied in the previous step to your clipboard) in the terminal and run it
+   2. Paste the host configuration script (that was printed in the previous step) in the terminal and run it
 
 **You can now connect to all hosts you listed in step 2** 🎉
 
-Optionally you can set the name of your VM in
+Optionally, you can set the name of your VM in
 1. System Preferences → Network → Ethernet → Advanced... → WINS → NetBIOS Name
 2. System Preferences → Sharing → Computer Name
 
 ## Remote Execution
 
-This section describes the necessary steps to run `share-zscaler.sh` on your
+This section describes the necessary steps to run `share-zscaler.v2.sh` on your
 local machine instead of the virtual Zscaler machine using SSH.
 
 ### Preparation
@@ -169,20 +171,22 @@ local machine instead of the virtual Zscaler machine using SSH.
 
 ### Execution
 
-The example used in this chapter will change to the following in order to be executed
-on the host `Zscaler` with user `zscaler`:
+The following command needs to be run on your working machine,
+which then connects to the host `Zscaler` with user `zscaler`,
+and finishes configuring your working machine using the returned configuration Bash script:
 ```shell
+(
+  bash <<'SHARE_ZSCALER_V2'
 ssh -4t zscaler@Zscaler.local '
-SHARE_ZSCALER_HOSTS='"'"'
-    foo.bar.internal
-    example.com
-'"'"' bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.sh)"'
+bash -c "$(curl -so- https://raw.githubusercontent.com/bkahlert/kill-zscaler/main/share-zscaler.v2.sh)" -- \
+  --probe foo.bar.internal \
+  --domain internal
+'
+SHARE_ZSCALER_V2
+) | bash
 ```
 
-You will be prompted for the password of user `zscaler` (unless you did the optional [sudoers configuration](#on-your-virtual-machine)).  
-After you ran the command you'll have the command to be executed locally in your clipboard and can just paste it.
-
-You can even call `pbpaste | bash` to run that script directly.
+You get prompted for the password of user `zscaler` (unless you did the optional [sudoers configuration](#on-your-virtual-machine)).  
 
 
 ## Troubleshooting

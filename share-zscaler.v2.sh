@@ -138,6 +138,7 @@ nameserver $vpn_gateway
   dns_cmds+=('dscacheutil -flushcache')
 
   declare unshare_sh='$HOME/unshare-zscaler.v2.sh'
+  dns_cmds=('if [ -x "'"$unshare_sh"'" ]; then "'"$unshare_sh"'"; fi' "${dns_cmds[@]}")
   dns_cmds+=('echo "cd /etc/resolver && sudo rm '"${domains[*]}"'" > "'"$unshare_sh"'" && chmod +x "'"$unshare_sh"'"')
 
   if [ "${debug-}" ]; then
