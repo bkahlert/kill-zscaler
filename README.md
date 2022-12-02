@@ -154,6 +154,7 @@ local machine instead of the virtual Zscaler machine using SSH.
    ```
    and run it on login via System Preferences → *Choose your user* → Login items → + → *Select your lock screen script*  
    Don't forget to make it executable using `chmod +x` and to run it once to provide it with sufficient permissions.
+4. If the IP of your VPN client machine is dynamic and you can't reliably resolve its IP, a workaround can be to install [GeekTool](https://www.tynsoe.org/geektool/) and display the output of `ipconfig getifaddr en0` in a script Geeklet. At least you now find out the current IP easily.
 
 #### On your local machine
 
