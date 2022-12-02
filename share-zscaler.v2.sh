@@ -124,16 +124,23 @@ main() {
   }
   comment_run rm "$nat_file"
 
-  declare route_cmd
-  route_cmd=$(printf "sudo bash -c 'route delete -net %s; route add -net %s -host %s'" "$vpn_address" "$vpn_address" "$VPN_CLIENT_ADDRESS")
+
+  declare -a prolog_cmds=()
+  prolog_cmds+=('bash -c "source <(curl -LfsS https://git.io/logr.sh) && banr \"ShareZScaler Host Configuration\""')
+
+  declare -a route_cmds=()
+  route_cmds+=("printf 'Configuring route to %s\n' '$vpn_address' >&2")
+  route_cmds+=("$(printf "sudo bash -c 'route delete -net %s; route add -net %s -host %s'" "$vpn_address" "$vpn_address" "$VPN_CLIENT_ADDRESS")")
 
   declare -a dns_cmds=()
   for domain in "${domains[@]}"; do
+    dns_cmds+=("printf 'Configuring resolver for %s\n' '$domain' >&2")
     dns_cmds+=("sudo bash -c 'echo \"domain $domain
 search $domain
 nameserver $vpn_gateway
 \" > /etc/resolver/$domain'")
   done
+  dns_cmds+=("printf 'Flushing DNS cache\n' >&2")
   dns_cmds+=('sudo killall -HUP mDNSResponder')
   dns_cmds+=('dscacheutil -flushcache')
 
@@ -146,14 +153,26 @@ nameserver $vpn_gateway
     dns_cmds+=("dns-sd -G v4v6 $probe")
   fi
 
+  declare -a epilog_cmds=()
+  epilog_cmds+=("{
+    tput bold
+    printf 'Host configuration completed'
+    tput setaf 2
+    printf ' ✔'
+    tput sgr0
+    printf '\n'
+  } >&2")
+
   comment_run printf "———\n"
   comment_run printf "Successfully set up this VPN client.\n"
   comment_run printf "To use the VPN tunnel on your host:\n"
   comment_run printf "— either run the following script on it, or\n"
   comment_run printf "— pipe this output to its Bash.\n"
   comment_run printf "———\n"
-  printf "%s\n" "$route_cmd"
+  printf "%s\n" "${prolog_cmds[@]}"
+  printf "%s\n" "${route_cmds[@]}"
   printf "%s\n" "${dns_cmds[@]}"
+  printf "%s\n" "${epilog_cmds[@]}"
 }
 
 main "$@"

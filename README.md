@@ -187,7 +187,16 @@ SHARE_ZSCALER_V2
 ) | bash
 ```
 
-You get prompted for the password of user `zscaler` (unless you did the optional [sudoers configuration](#on-your-virtual-machine)).  
+You get prompted for the password of user `zscaler` (unless you did the optional [sudoers configuration](#on-your-virtual-machine)).
+
+> 💡 Users with a VPN host machine with dynamic IP can try to
+change the `ssh` command to:
+> ```shell
+> ssh -4t "zscaler@$(sudo nmap -n -p 22 192.168.206.2-254 -oG - | awk '/Up$/{print $2}')"
+> ```
+> Be sure to change the `192.168.206` part to match the client's address range.
+> The above `nmap` command looks for a machine with an open SSH port and pass the match to the `ssh` command. 
+
 
 
 ## Troubleshooting
