@@ -19,17 +19,6 @@
 #
 # bashsupport disable=BP5001
 
-# Prints error and exits with 1
-die() {
-  {
-    tput setaf 1
-    printf '%s' "$*"
-    tput sgr0
-    printf '\n'
-  } >&2
-  exit 1
-}
-
 # The IP of the (virtual) host with Zscaler installed (default: IP of en0 interface)
 declare -r VPN_CLIENT_ADDRESS=${SHARE_ZSCALER_VPN_CLIENT_ADDRESS:-$(ipconfig getifaddr en0)}
 
@@ -124,7 +113,6 @@ main() {
   }
   comment_run rm "$nat_file"
 
-
   declare -a prolog_cmds=()
   prolog_cmds+=('bash -c "source <(curl -LfsS https://git.io/logr.sh) && banr \"ShareZScaler Host Configuration\""')
 
@@ -132,7 +120,7 @@ main() {
   route_cmds+=("printf 'Configuring route to %s\n' '$vpn_address' >&2")
   route_cmds+=("$(printf "sudo bash -c 'route delete -net %s; route add -net %s -host %s'" "$vpn_address" "$vpn_address" "$VPN_CLIENT_ADDRESS")")
 
-  declare -a dns_cmds=()
+  declare -a dns_cmds=("sudo mkdir -p '/etc/resolver'")
   for domain in "${domains[@]}"; do
     dns_cmds+=("printf 'Configuring resolver for %s\n' '$domain' >&2")
     dns_cmds+=("sudo bash -c 'echo \"domain $domain
@@ -146,7 +134,7 @@ nameserver $vpn_gateway
 
   declare unshare_sh='$HOME/unshare-zscaler.v2.sh'
   dns_cmds=('if [ -x "'"$unshare_sh"'" ]; then "'"$unshare_sh"'"; fi' "${dns_cmds[@]}")
-  dns_cmds+=('echo "cd /etc/resolver && sudo rm '"${domains[*]}"'" > "'"$unshare_sh"'" && chmod +x "'"$unshare_sh"'"')
+  dns_cmds+=('echo "cd /etc/resolver && sudo rm '"${domains[*]}"' 2>/dev/null" > "'"$unshare_sh"'" && chmod +x "'"$unshare_sh"'"')
 
   if [ "${debug-}" ]; then
     dns_cmds+=("scutil --dns")

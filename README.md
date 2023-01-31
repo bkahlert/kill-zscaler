@@ -2,7 +2,7 @@
 
 # Killing Zscaler on macOS
 
-Zscaler can be annoying if you're trying to stop it. Despite have administrative rights, usually it asks for a password.
+Zscaler can be annoying if you're trying to stop it. Despite having administrative rights, usually it asks for a password.
 
 Pick one of the following options to take back control.
 
@@ -197,6 +197,39 @@ change the `ssh` command to:
 > Be sure to change the `192.168.206` part to match the client's address range.
 > The above `nmap` command looks for a machine with an open SSH port and pass the match to the `ssh` command. 
 
+**Example output**:
+```
+No ALTQ support in kernel
+ALTQ related functions disabled
+pfctl: pf not enabled
+No ALTQ support in kernel
+ALTQ related functions disabled
+rules cleared
+nat cleared
+dummynet cleared
+0 tables deleted.
+0 states cleared
+source tracking entries cleared
+pf: statistics cleared
+pf: interface flags reset
+pfctl: Use of -f option, could result in flushing of rules
+present in the main ruleset added by the system at startup.
+See /etc/pf.conf for further details.
+
+No ALTQ support in kernel
+ALTQ related functions disabled
+pf enabled
+
+   ▔▔▔▔▔▔▔ SHARE ZSCALER HOST CONFIGURATION
+
+Configuring route to 10ß.200.0.0
+route: writing to routing socket: not in table
+delete net 100.200.0.0: not in table
+add net 100.200.0.0: gateway 192.168.206.14
+Configuring resolver for internal
+Flushing DNS cache
+Host configuration completed ✔
+```
 
 
 ## Troubleshooting
