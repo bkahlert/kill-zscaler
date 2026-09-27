@@ -1,8 +1,6 @@
 *Instructions on [how to share the connection of a Zscaler installed in a virtual machine](#sharing-zscaler) can be found below.*
 
-[![Buy Me A Coffee](https://img.shields.io/static/v1?label=&message=%E2%98%95%20Buy%20Me%20A%20Coffee&color=FFDD00)](https://www.buymeacoffee.com/bkahlert)
-
-# Killing Zscaler on macOS
+# Killing Zscaler on macOS [![Buy Me A Coffee](https://img.shields.io/static/v1?label=&message=%E2%98%95%20Buy%20Me%20A%20Coffee&color=FFDD00)](https://www.buymeacoffee.com/bkahlert)
 
 Zscaler can be annoying if you're trying to stop it. Despite having administrative rights, usually it asks for a password.
 
