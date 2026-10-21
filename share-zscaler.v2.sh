@@ -114,7 +114,7 @@ main() {
   comment_run rm "$nat_file"
 
   declare -a prolog_cmds=()
-  prolog_cmds+=('bash -c "source <(curl -LfsS https://git.io/logr.sh) && banr \"ShareZScaler Host Configuration\""')
+  prolog_cmds+=('bash -c "source <(curl -LfsS https://github.com/bkahlert/logr/releases/download/v0.6.4/logr.sh) && banr \"ShareZScaler Host Configuration\""')
 
   declare -a route_cmds=()
   route_cmds+=("printf 'Configuring route to %s\n' '$vpn_address' >&2")
