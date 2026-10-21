@@ -14,7 +14,7 @@ test_generated_configuration_uses_pinned_logr_release() {
       bash -c 'source "$1" --probe foo.bar.internal --domain internal' \
       _ "$repo_root/share-zscaler.v2.sh"
   )
-  local expected_url='https://github.com/bkahlert/logr/releases/download/v0.6.4/logr.sh'
+  local expected_url='https://github.com/bkahlert/logr/releases/download/v0.6.5/logr.sh'
 
   if ! grep -Fq "$expected_url" <<<"$output"; then
     printf 'Expected generated configuration to use %s\n' "$expected_url" >&2
