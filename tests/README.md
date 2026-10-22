@@ -14,34 +14,36 @@ They also reject permission errors, unavailable domains, and invalid inputs.
 
 ## Completed evidence
 
-| Environment                     | Completed result               | Boundary                                          |
-|---------------------------------|--------------------------------|---------------------------------------------------|
-| Sonoma 14.8.9 (23J631)          | [600.167 seconds][sonoma-job]  | Fixtures, not exact 14.0/14.6 or Zscaler          |
-| macOS 15.7.9 (24G830)           | [600.172 seconds][current-run] | Fixtures, not a proprietary client                |
-| macOS 26.6.2 (25G83)            | [600.131 seconds][current-run] | Fixtures, not a proprietary client                |
-| Zscaler 4.8.0.281 / macOS 15    | [Readiness passed][client-run] | Real service/tray; no active extension or tenant  |
-| Zscaler 4.8.0.281 / macOS 26    | [Harness rejected readiness][client-run] | Nested launchd state misparsed; corrected run pending |
-| Enrolled/MDM-controlled Zscaler | Not verified                   | Requires authorized tenant and policy             |
+| Environment                                      | Completed result                           | Boundary                                     |
+|--------------------------------------------------|--------------------------------------------|----------------------------------------------|
+| Sonoma 14.8.9 (23J631)                           | [600.174 seconds][fixture-run]             | Fixtures, not exact 14.0/14.6 or Zscaler     |
+| macOS 15.7.9 (24G830)                            | [600.135 seconds][fixture-run]             | Fixtures, not a proprietary client           |
+| macOS 26.6.2 (25G83)                             | [600.180 seconds][fixture-run]             | Fixtures, not a proprietary client           |
+| Zscaler 4.8.0.281 / macOS 15.7.9 (24G830), arm64 | [600.177 seconds, restored][client-15-job] | Unenrolled service/tray; no active extension |
+| Zscaler 4.8.0.281 / macOS 26.6.2 (25G83), arm64  | [600.195 seconds, restored][client-26-job] | Unenrolled service/tray; no active extension |
+| Enrolled/MDM-controlled Zscaler                  | Not verified                               | Requires authorized tenant and policy        |
 
-[sonoma-job]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734173228/job/119675908169
-[current-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39735802796
-[client-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39736719514
+[fixture-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39735802284
+[client-15-job]: https://github.com/bkahlert/kill-zscaler/actions/runs/39738487884/job/119689739282
+[client-26-job]: https://github.com/bkahlert/kill-zscaler/actions/runs/39738487884/job/119689739125
 
 The linked fixture jobs passed stop, sustained absence, restoration,
 repeated operations, unrelated-service preservation, and console-user app open.
-The current-macOS run at `76d5a6c` passed with the stay-open stand-in app.
-Its 32 regression tests also passed (Ubuntu skips two macOS-only cases).
-The Sonoma job passed, but that manual run failed overall: a separate Tahoe
-job encountered LaunchServices error -600 during repeated stand-in app opening,
-after its absence observation succeeded. The fully green push run linked above
-passed both current-macOS jobs. The stand-in now stays open to avoid racing
-its own termination and clears its opening marker before restoration.
+The three-OS fixture run at `76d5a6c` completed successfully.
 
-The first actual-client runs incorrectly rejected Tahoe readiness.
-Their diagnostic report showed real vendor PIDs, but the harness let nested
-resource-coalition `state = active` fields overwrite the service state.
-The corrected parser reads only direct service fields. A regression test
-reproduces that format; completed corrected real-client evidence is still needed.
+The actual-client run at `a779891` also completed successfully on both current
+macOS versions. It verified the pinned installer and real running service/tray,
+old-process exit, ten minutes of sampled absence, restoration, repeated
+stop/start, console-user tray ownership, and an unchanged unrelated `logd` PID.
+All three discovered launchd targets were absent during observation.
+The demand-started tunnel was not running before stop and was loaded on restore.
+Neither runner had a supplied tenant or an active system extension before or
+after the lifecycle. This does not establish enrolled VPN/network function.
+The same run passed 55 regression tests (Ubuntu skips two macOS-only cases).
+
+Earlier Tahoe readiness failures were harness false negatives: nested
+resource-coalition state overwrote the direct service state.
+The corrected parser reads only direct service fields, with a regression test.
 
 A fixture is not an installed Zscaler client. A signed installer, installation
 exit status, or launched app alone would not prove client readiness or lifecycle.

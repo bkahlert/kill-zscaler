@@ -140,6 +140,12 @@ signed Zscaler **4.8.0.281** package only on disposable current-macOS runners.
 It requires real running services before exercising stop, a 600-second
 absence observation, restoration, repeated operations, and console-user app
 ownership. Installation success alone cannot pass. No tenant is supplied.
+The [completed actual-client run](tests/README.md#completed-evidence) passed
+on arm64 macOS **15.7.9 (24G830)** and **26.6.2 (25G83)**.
+Real vendor service/tray processes exited, all discovered launchd targets
+remained absent for at least 600 sampled seconds, and services were restored.
+Repeated stop/start, console-user tray ownership, and an unrelated service
+also passed. Neither runner had an active system extension.
 
 **Evidence boundary:** Regular green checks prove the fixture lifecycle.
 Actual-client results are reported separately, including failed prerequisites.
