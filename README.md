@@ -121,12 +121,12 @@ domains, check repeated stop/start and unrelated services, and clean up.
 After stopping, they poll both service targets every five seconds for at least
 600 seconds before restoring them. Any observed reappearance or inspection
 error fails the test; a service returning between polls can escape detection.
-The tests never install Zscaler. Linux containers cannot provide launchd.
-The integration test refuses to run outside GitHub-hosted macOS CI.
+These fixture jobs never install Zscaler. Linux containers cannot provide launchd.
+The integration jobs refuse to run outside GitHub-hosted macOS CI.
 Completed fixture checks cover Sonoma **14.8.9 (23J631)**, macOS
 **15.7.9 (24G830)**, and **26.6.2 (25G83)**, each with at least
 600 seconds of sampled absence before restoration.
-Sonoma 14.0/14.6 and actual Zscaler remain unverified.
+Sonoma 14.0/14.6 remain unverified.
 See the [run links and evidence boundaries](tests/README.md#completed-evidence).
 
 For Sonoma coverage, manually dispatch the workflow with `sonoma` enabled
@@ -135,10 +135,16 @@ while `macos-14` remains available.
 on November 2, 2026, with brownouts before removal.
 It is therefore not a required target for every push.
 
-**Evidence boundary:** A green workflow proves the fixture lifecycle on the
-reported runner versions. It does not certify a proprietary Zscaler build,
-organization policy, native authorization dialog, or unsigned-app approval.
-No live-client verification is available from the maintainer.
+The separate, manually dispatched `real_client` lane installs the pinned,
+signed Zscaler **4.8.0.281** package only on disposable current-macOS runners.
+It requires real running services before exercising stop, a 600-second
+absence observation, restoration, repeated operations, and console-user app
+ownership. Installation success alone cannot pass. No tenant is supplied.
+
+**Evidence boundary:** Regular green checks prove the fixture lifecycle.
+Actual-client results are reported separately, including failed prerequisites.
+Neither lane certifies enrolled network function, organization policy, native
+authorization dialogs, or unsigned-app approval.
 See the [evidence matrix and real-client prerequisites](tests/README.md)
 for completed versions, reproduction, and remaining gaps.
 

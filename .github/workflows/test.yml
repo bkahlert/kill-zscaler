@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       real_client:
-        description: Install the pinned real client on disposable current-macOS runners
+        description: Test the pinned real client lifecycle on disposable current-macOS runners
         type: boolean
         default: false
       sonoma:
@@ -65,10 +65,11 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Pinned actual-client readiness (no tenant)
+      - name: Pinned actual-client lifecycle (no tenant)
         run: >-
           python3 tests/real_client_integration.py
           --manifest tests/fixtures/zscaler-client.json
+          --stage lifecycle
           --report readiness.json
       - name: Preserve allowlisted readiness evidence
         if: always()

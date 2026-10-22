@@ -9,6 +9,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from observe_launchd import observe_absence
+
 
 APP = Path("/Applications/Zscaler/Zscaler.app")
 
@@ -83,21 +85,30 @@ def _inventory(uid):
     return inventory
 
 
-def _running(target):
+def _service_state(target):
     result = subprocess.run(
         ["launchctl", "print", target], capture_output=True, text=True, timeout=10,
     )
     if result.returncode == 113:
-        return None
+        return {"loaded": False, "state": None, "pid": None, "last_exit_code": None}
     if result.returncode:
         raise RuntimeError(f"launchctl print {target}: status {result.returncode}")
     fields = dict(
         line.strip().split(" = ", 1) for line in result.stdout.splitlines()
         if " = " in line
     )
-    if fields.get("state") == "running" and fields.get("pid", "").isdigit():
-        return int(fields["pid"])
-    return None
+    pid = fields.get("pid", "")
+    return {
+        "loaded": True,
+        "state": fields.get("state"),
+        "pid": int(pid) if pid.isdigit() else None,
+        "last_exit_code": fields.get("last exit code"),
+    }
+
+
+def _running(target):
+    state = _service_state(target)
+    return state["pid"] if state["state"] == "running" else None
 
 
 def _require_baseline(inventory, running):
@@ -148,11 +159,12 @@ def _readiness(manifest, report):
     while True:
         _run("launchctl", "print", "system")
         _run("launchctl", "print", f"gui/{report['console_uid']}")
-        running = {}
-        for item in inventory:
-            pid = _running(item["target"])
-            if pid is not None:
-                running[item["target"]] = pid
+        states = {item["target"]: _service_state(item["target"]) for item in inventory}
+        running = {
+            target: state["pid"] for target, state in states.items()
+            if state["state"] == "running" and state["pid"] is not None
+        }
+        report["service_states"] = states
         report["running_services"] = running
         if time.monotonic() >= deadline:
             break
@@ -172,17 +184,118 @@ def _readiness(manifest, report):
     report["ready"] = True
 
 
+def _process_identity(pid):
+    result = subprocess.run(
+        ["ps", "-p", str(pid), "-o", "lstart=,comm="],
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode == 1:
+        return None
+    if result.returncode:
+        raise RuntimeError(f"Cannot inspect process {pid}: status {result.returncode}")
+    return result.stdout.strip()
+
+
+def _wait_dead(identities):
+    deadline = time.monotonic() + 30
+    while True:
+        surviving = [
+            pid for pid, identity in identities.items()
+            if _process_identity(pid) == identity
+        ]
+        if not surviving:
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"Original vendor processes still running: {surviving}")
+        time.sleep(1)
+
+
+def _assert_control(target, pid):
+    if _running(target) != pid:
+        raise RuntimeError(f"Unrelated service changed: {target}")
+
+
+def _check_app(running, uid):
+    pid = running[f"gui/{uid}/com.zscaler.tray"]
+    process = _run("ps", "-p", str(pid), "-o", "uid=,comm=").split(maxsplit=1)
+    executable = str(APP / "Contents/MacOS/Zscaler")
+    if process != [str(uid), executable]:
+        raise RuntimeError("Real app is not running as the console user")
+
+
+def _wait_restored(targets):
+    deadline = time.monotonic() + 120
+    while True:
+        running = {target: _running(target) for target in targets}
+        if all(pid is not None for pid in running.values()):
+            return running
+        if time.monotonic() >= deadline:
+            missing = [target for target, pid in running.items() if pid is None]
+            raise RuntimeError(f"Vendor services not restored: {missing}")
+        time.sleep(1)
+
+
+def _lifecycle(report):
+    report["lifecycle_passed"] = False
+    report["stage"] = "lifecycle-baseline"
+    running = report["running_services"]
+    _check_app(running, report["console_uid"])
+    control = "system/com.apple.logd"
+    control_pid = _running(control)
+    if control_pid is None:
+        raise RuntimeError("Unrelated control service is not running")
+    report["unrelated_control"] = {"target": control, "pid": control_pid}
+    identities = {pid: _process_identity(pid) for pid in running.values()}
+    if any(identity is None for identity in identities.values()):
+        raise RuntimeError("Vendor baseline process disappeared before stop")
+    repo = Path(__file__).resolve().parent.parent
+    report["stage"] = "stop"
+    _run("/bin/bash", str(repo / "kill-zscaler.sh"), timeout=60)
+    _wait_dead(identities)
+    report["original_processes_exited"] = True
+    _run("/bin/bash", str(repo / "kill-zscaler.sh"), timeout=60)
+    _assert_control(control, control_pid)
+    report["stage"] = "stopped-observation"
+    report["observation"] = observe_absence(
+        [item["target"] for item in report["discovered_services"]], 600, 5,
+    )
+    _assert_control(control, control_pid)
+    report["stage"] = "restoration"
+    _run("/bin/bash", str(repo / "start-zscaler.sh"), timeout=60)
+    restored = _wait_restored(running)
+    for item in report["discovered_services"]:
+        _run("launchctl", "print", item["target"])
+    _check_app(restored, report["console_uid"])
+    _assert_control(control, control_pid)
+    _run("/bin/bash", str(repo / "start-zscaler.sh"), timeout=60)
+    repeated = _wait_restored(running)
+    if repeated != restored:
+        raise RuntimeError("Repeated start changed vendor service processes")
+    _check_app(repeated, report["console_uid"])
+    _assert_control(control, control_pid)
+    report["restored_services"] = restored
+    report["extension_state_after"] = [
+        line.strip() for line in _run("systemextensionsctl", "list").splitlines()
+        if "PCBCQZJ7S7" in line
+    ]
+    report["stage"] = "lifecycle"
+    report["lifecycle_passed"] = True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Install and inspect a pinned real client on disposable macOS CI only."
     )
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--stage", choices=("readiness", "lifecycle"), default="readiness")
     args = parser.parse_args()
     report = {"ready": False}
     try:
         manifest = json.loads(args.manifest.read_text())
         _readiness(manifest, report)
+        if args.stage == "lifecycle":
+            _lifecycle(report)
     except (RuntimeError, OSError, ValueError, KeyError, subprocess.TimeoutExpired) as error:
         report["error"] = str(error)
         return_code = 1

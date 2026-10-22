@@ -14,20 +14,23 @@ They also reject permission errors, unavailable domains, and invalid inputs.
 
 ## Completed evidence
 
-| Environment                    | Completed result              | Boundary                                    |
-|--------------------------------|-------------------------------|---------------------------------------------|
-| Sonoma 14.8.9 (23J631)          | [600.167 seconds][sonoma-job]  | Fixtures, not exact 14.0/14.6 or Zscaler       |
-| macOS 15.7.9 (24G830)           | [600.036 seconds][current-run] | Fixtures, not a proprietary client           |
-| macOS 26.6.2 (25G83)            | [600.130 seconds][current-run] | Fixtures, not a proprietary client           |
-| Actual Zscaler Client Connector | CI readiness pending          | Signed package inspected; no tenant supplied |
-| Enrolled/MDM-controlled Zscaler  | Not verified                  | Requires authorized tenant and policy       |
+| Environment                     | Completed result               | Boundary                                          |
+|---------------------------------|--------------------------------|---------------------------------------------------|
+| Sonoma 14.8.9 (23J631)          | [600.167 seconds][sonoma-job]  | Fixtures, not exact 14.0/14.6 or Zscaler          |
+| macOS 15.7.9 (24G830)           | [600.172 seconds][current-run] | Fixtures, not a proprietary client                |
+| macOS 26.6.2 (25G83)            | [600.131 seconds][current-run] | Fixtures, not a proprietary client                |
+| Zscaler 4.8.0.281 / macOS 15    | [Readiness passed][client-run] | Real service/tray; no active extension or tenant  |
+| Zscaler 4.8.0.281 / macOS 26    | [Readiness failed][client-run] | Installed, but no running vendor service baseline |
+| Enrolled/MDM-controlled Zscaler | Not verified                   | Requires authorized tenant and policy             |
 
 [sonoma-job]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734173228/job/119675908169
-[current-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734172920
+[current-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39735802796
+[client-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39736719514
 
-The linked jobs at commit `0f36fe0` passed stop, sustained absence, restoration,
+The linked fixture jobs passed stop, sustained absence, restoration,
 repeated operations, unrelated-service preservation, and console-user app open.
-Their 32 regression tests also passed (Ubuntu skips two macOS-only cases).
+The current-macOS run at `76d5a6c` passed with the stay-open stand-in app.
+Its 32 regression tests also passed (Ubuntu skips two macOS-only cases).
 The Sonoma job passed, but that manual run failed overall: a separate Tahoe
 job encountered LaunchServices error -600 during repeated stand-in app opening,
 after its absence observation succeeded. The fully green push run linked above
@@ -66,7 +69,8 @@ Neither a newer runner nor a different Sonoma patch release certifies 14.0/14.6.
 
 Real-client testing is restricted to disposable CI, never the maintainer's Mac.
 The manually dispatched `real_client` input of the [workflow](../.github/workflows/test.yml)
-installs only the reviewed, pinned package on fresh macOS 15/26 runners.
+installs only the reviewed, pinned package on fresh macOS 15/26 runners,
+then runs the actual-client lifecycle after readiness succeeds.
 The [manifest](fixtures/zscaler-client.json) records its version, SHA-256,
 vendor signing identity, architectures, and selected test OS versions.
 No placeholder tenant, arbitrary "latest" URL, or fixture fallback is acceptable.
@@ -118,3 +122,13 @@ The allowlisted JSON report distinguishes discovered jobs, running PIDs,
 extension state, and the absence of enrollment/network-function evidence.
 Raw installer output, vendor diagnostics, configuration, and payloads are not
 uploaded. Readiness failure remains a failed job, never a fixture fallback.
+
+After readiness, the same harness invokes the public stop/start scripts as the
+ordinary console user. It checks every original vendor process exits,
+repeats stop, observes every discovered target absent for 600 seconds,
+then checks restoration of the original running baseline and all discovered
+launchd jobs. Repeated start must retain service PIDs. The actual tray executable
+must belong to the console user, and an unrelated existing `logd` service must
+retain its PID. Extension state is reported separately before and after.
+The demand-started tunnel need not run without enrollment; this is not a
+functional VPN or "all Zscaler components stopped" certification.
