@@ -1,3 +1,12 @@
-#!/bin/sh
-/usr/bin/osascript -e 'do shell script "find /Library/LaunchDaemons -name *zscaler* -exec launchctl unload {} \\;" with administrator privileges'
-/usr/bin/osascript -e 'do shell script "find /Library/LaunchAgents -name *zscaler* -exec launchctl unload {} \\;"'
+#!/usr/bin/env bash
+# Purpose: Stop Zscaler with a graphical administrator authorization prompt.
+# Usage:   open "Kill Zscaler.app"
+
+set -euo pipefail
+
+repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)
+exec osascript - "$repo_dir/kill-zscaler.sh" <<'APPLESCRIPT'
+on run arguments
+    do shell script "/bin/bash " & quoted form of (item 1 of arguments) with administrator privileges
+end run
+APPLESCRIPT

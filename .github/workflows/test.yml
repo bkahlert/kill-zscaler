@@ -1,0 +1,80 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      real_client:
+        description: Test the pinned real client lifecycle on disposable current-macOS runners
+        type: boolean
+        default: false
+      sonoma:
+        description: Also test Sonoma before its November 2, 2026 retirement
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax and lint
+        shell: bash
+        run: |
+          scripts=(
+            kill-zscaler.sh start-zscaler.sh zscaler.bash kill-zscaler.alias.txt
+            "Kill Zscaler.app/Contents/MacOS/main.command"
+            "Start Zscaler.app/Contents/MacOS/main.command"
+            tests/launchd-integration
+          )
+          for script in "${scripts[@]}"; do
+            bash -n "$script"
+          done
+          shellcheck -s bash -x "${scripts[@]}"
+      - name: Regression and documentation tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Connection-sharing regression
+        run: bash tests/share-zscaler-download-test.sh
+
+  launchd:
+    if: ${{ !inputs.real_client }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.sonoma && '["macos-14", "macos-15", "macos-26"]' || '["macos-15", "macos-26"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regression, documentation, and AppleScript compilation
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Real launchd integration (no Zscaler installation)
+        run: bash tests/launchd-integration
+
+  real-client:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.real_client }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pinned actual-client lifecycle (no tenant)
+        run: >-
+          python3 tests/real_client_integration.py
+          --manifest tests/fixtures/zscaler-client.json
+          --stage lifecycle
+          --report readiness.json
+      - name: Preserve allowlisted readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readiness-${{ matrix.os }}
+          path: readiness.json
+          if-no-files-found: error

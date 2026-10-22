@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import plistlib
+import subprocess
+import sys
+
+
+name = Path(sys.argv[0]).name
+args = sys.argv[1:]
+root = Path(os.environ["FIXTURE_ROOT"])
+failure = os.environ.get("FAKE_FAIL")
+with (root / "calls.jsonl").open("a") as log:
+    log.write(json.dumps([name, *args]) + "\n")
+
+
+def denied():
+    print(f"{name}: permission denied", file=sys.stderr)
+    sys.exit(5)
+
+
+if failure == name or (name == "launchctl" and args[0] == failure):
+    denied()
+
+if name == "id":
+    print(os.environ.get("FAKE_UID", "0"))
+elif name == "stat":
+    print(os.environ.get("FAKE_CONSOLE_UID", "502"))
+elif name == "find":
+    directory = root / "Library" / Path(args[0]).name
+    paths = sorted(path for path in directory.iterdir()
+                   if path.is_file() and "zscaler" in path.name.lower()
+                   and path.suffix == ".plist")
+    if "-print0" in args:
+        for path in paths:
+            sys.stdout.buffer.write(os.fsencode(path) + b"\0")
+    else:
+        print("Legacy find/launchctl invocation", file=sys.stderr)
+        sys.exit(1)
+elif name == "plutil":
+    try:
+        label = plistlib.loads(Path(args[-1]).read_bytes())["Label"]
+    except (KeyError, plistlib.InvalidFileException):
+        sys.exit("Invalid plist")
+    else:
+        if not isinstance(label, str):
+            sys.exit("Label is not a string")
+        print(label)
+elif name == "sudo":
+    if failure == "id":
+        sys.exit("Unexpected escalation after failed identity lookup")
+    if args[:1] == ["-u"]:
+        args = args[2:]
+    os.environ["FAKE_UID"] = "0"
+    sys.exit(subprocess.run(args, env=os.environ).returncode)
+elif name == "launchctl":
+    state_path = root / "state.json"
+    state = json.loads(state_path.read_text())
+    action, target = args[:2]
+    if action == "print":
+        if "/" not in target or target == "gui/502":
+            if os.environ.get("FAKE_GUI_MISSING") and target == "gui/502":
+                sys.exit("GUI domain missing")
+        elif failure == "print-service":
+            denied()
+        elif target not in state:
+            print("Could not find service", file=sys.stderr)
+            sys.exit(113)
+    elif action == "bootout":
+        if target not in state:
+            sys.exit("Not loaded")
+        state.remove(target)
+    elif action == "bootstrap":
+        label = plistlib.loads(Path(args[2]).read_bytes())["Label"]
+        service = f"{target}/{label}"
+        if service in state:
+            sys.exit("Already loaded")
+        state.append(service)
+    elif action == "asuser":
+        sys.exit(subprocess.run(args[2:], env=os.environ).returncode)
+    else:
+        sys.exit(f"Unexpected launchctl operation: {args}")
+    state_path.write_text(json.dumps(state))
+elif name == "osascript":
+    (root / "applescript").write_text(sys.stdin.read())
+    if args[:1] != ["-"] or len(args) != 2:
+        sys.exit(f"Unexpected AppleScript arguments: {args}")
+    os.environ["FAKE_UID"] = "0"
+    sys.exit(subprocess.run(["/bin/bash", args[1]], env=os.environ).returncode)
+elif name != "open":
+    sys.exit(f"Unexpected command: {name}")

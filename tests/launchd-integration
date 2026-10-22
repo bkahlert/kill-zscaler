@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Purpose: Exercise real launchd with disposable fixtures on GitHub macOS CI.
+# Usage:   tests/launchd-integration
+#
+# Refuses local execution. Never installs Zscaler.
+
+set -euo pipefail
+
+if [[ ${GITHUB_ACTIONS-} != true || ${RUNNER_OS-} != macOS ||
+      ${RUNNER_ENVIRONMENT-} != github-hosted || $(uname -s) != Darwin ]]; then
+  printf 'This test requires a disposable GitHub-hosted macOS runner.\n' >&2
+  exit 1
+fi
+
+repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+uid=$(id -u)
+launchctl print "gui/$uid" > /dev/null
+sudo -n true
+
+existing=$(find /Library/LaunchAgents /Library/LaunchDaemons \
+  -maxdepth 1 -iname '*zscaler*.plist' -print)
+if [[ -n $existing || -e /Applications/Zscaler ]]; then
+  printf 'Refusing to test alongside an existing Zscaler installation.\n' >&2
+  exit 1
+fi
+
+work=$(mktemp -d /tmp/kill-zscaler-ci.XXXXXX)
+suffix=${work##*.}
+agent_label="org.example.kill-zscaler.agent.$suffix"
+daemon_label="org.example.kill-zscaler.daemon.$suffix"
+unrelated_label="org.example.unrelated.$suffix"
+agent_path="/Library/LaunchAgents/com.Zscaler.fixture-agent.$suffix.plist"
+daemon_path="/Library/LaunchDaemons/com.zscaler.fixture-daemon.$suffix.plist"
+unrelated_path="/Library/LaunchDaemons/org.example.unrelated.$suffix.plist"
+
+cleanup() {
+  local status=$? target
+  trap - EXIT
+  for target in "gui/$uid/$agent_label" "system/$daemon_label" \
+    "system/$unrelated_label"; do
+    if launchctl print "$target" > /dev/null 2>&1; then
+      sudo launchctl bootout "$target" || status=1
+    fi
+  done
+  sudo rm -f -- "$agent_path" "$daemon_path" "$unrelated_path" || status=1
+  if [[ -d /Applications/Zscaler/Zscaler.app ]]; then
+    osascript -e 'tell application "/Applications/Zscaler/Zscaler.app" to quit' || status=1
+  fi
+  # This directory was absent at preflight and contains only our test app.
+  sudo rm -r -- /Applications/Zscaler || status=1
+  rm -r -- "$work" || status=1
+  exit "$status"
+}
+trap cleanup EXIT
+
+service_pid() {
+  launchctl print "$1" | awk '/^[[:space:]]*pid = / {print $3; exit}'
+}
+
+wait_running() {
+  local target=$1 attempt pid
+  for (( attempt=0; attempt<100; attempt++ )); do
+    pid=$(service_pid "$target")
+    if [[ -n $pid ]] && sudo kill -0 "$pid" 2> /dev/null; then
+      printf '%s\n' "$pid"
+      return 0
+    fi
+    sleep 0.1
+  done
+  printf 'Service did not start: %s\n' "$target" >&2
+  return 1
+}
+
+assert_absent() {
+  local target=$1 status
+  if launchctl print "$target" > /dev/null 2>&1; then
+    printf 'Service unexpectedly loaded: %s\n' "$target" >&2
+    return 1
+  else
+    status=$?
+  fi
+  [[ $status == 113 ]]
+}
+
+wait_dead() {
+  local pid=$1 attempt
+  for (( attempt=0; attempt<100; attempt++ )); do
+    if ! sudo kill -0 "$pid" 2> /dev/null; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  printf 'Stopped service process still exists: %s\n' "$pid" >&2
+  return 1
+}
+
+sw_vers
+printf 'Testing GUI domain gui/%s and system domain\n' "$uid"
+python3 - "$work" "$agent_label" "$daemon_label" "$unrelated_label" <<'PYTHON'
+from pathlib import Path
+import plistlib
+import sys
+
+directory = Path(sys.argv[1])
+for name, label in zip(("agent", "daemon", "unrelated"), sys.argv[2:]):
+    (directory / f"{name}.plist").write_bytes(plistlib.dumps({
+        "Label": label,
+        "ProgramArguments": ["/bin/sleep", "86400"],
+        "RunAtLoad": True,
+        "KeepAlive": True,
+        "ThrottleInterval": 1,
+    }))
+PYTHON
+
+sudo install -o root -g wheel -m 644 "$work/agent.plist" "$agent_path"
+sudo install -o root -g wheel -m 644 "$work/daemon.plist" "$daemon_path"
+sudo install -o root -g wheel -m 644 "$work/unrelated.plist" "$unrelated_path"
+
+# Stay open so repeated launches cannot race a short-lived app's termination.
+osacompile -s -o "$work/Zscaler.app" \
+  -e 'on run' \
+  -e "do shell script \"/usr/bin/touch $work/opened\"" \
+  -e 'end run' \
+  -e 'on reopen' \
+  -e "do shell script \"/usr/bin/touch $work/opened\"" \
+  -e 'end reopen'
+sudo mkdir /Applications/Zscaler
+sudo ditto "$work/Zscaler.app" /Applications/Zscaler/Zscaler.app
+
+sudo launchctl bootstrap system "$unrelated_path"
+unrelated_pid=$(wait_running "system/$unrelated_label")
+
+sudo /bin/bash "$repo_dir/start-zscaler.sh"
+agent_pid=$(wait_running "gui/$uid/$agent_label")
+daemon_pid=$(wait_running "system/$daemon_label")
+
+# Demonstrate that KeepAlive really respawns this fixture before testing stop.
+launchctl kill SIGKILL "gui/$uid/$agent_label"
+restarted=false
+for (( attempt=0; attempt<100; attempt++ )); do
+  new_pid=$(service_pid "gui/$uid/$agent_label")
+  if [[ -n $new_pid && $new_pid != "$agent_pid" ]]; then
+    restarted=true
+    break
+  fi
+  sleep 0.1
+done
+[[ $restarted == true ]]
+agent_pid=$(wait_running "gui/$uid/$agent_label")
+
+sudo /bin/bash "$repo_dir/kill-zscaler.sh"
+assert_absent "gui/$uid/$agent_label"
+assert_absent "system/$daemon_label"
+wait_dead "$agent_pid"
+wait_dead "$daemon_pid"
+[[ $(service_pid "system/$unrelated_label") == "$unrelated_pid" ]]
+
+sudo /bin/bash "$repo_dir/kill-zscaler.sh"
+assert_absent "gui/$uid/$agent_label"
+assert_absent "system/$daemon_label"
+
+python3 "$repo_dir/tests/observe_launchd.py" \
+  --target "gui/$uid/$agent_label" --target "system/$daemon_label" \
+  --seconds 600 --interval 5
+[[ $(service_pid "system/$unrelated_label") == "$unrelated_pid" ]]
+
+rm -f -- "$work/opened"
+sudo /bin/bash "$repo_dir/start-zscaler.sh"
+agent_pid=$(wait_running "gui/$uid/$agent_label")
+daemon_pid=$(wait_running "system/$daemon_label")
+sudo /bin/bash "$repo_dir/start-zscaler.sh"
+[[ $(service_pid "gui/$uid/$agent_label") == "$agent_pid" ]]
+[[ $(service_pid "system/$daemon_label") == "$daemon_pid" ]]
+[[ $(service_pid "system/$unrelated_label") == "$unrelated_pid" ]]
+
+for (( attempt=0; attempt<100; attempt++ )); do
+  [[ ! -f $work/opened ]] || break
+  sleep 0.1
+done
+[[ -f $work/opened ]]
+printf 'PASS: real agent/daemon stop, KeepAlive, 600s absence, restore, repeat, and user app open\n'

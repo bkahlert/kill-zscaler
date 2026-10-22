@@ -1,0 +1,9 @@
+{
+  "version": "4.8.0.281",
+  "url": "https://d32a6ru7mhaq0c.cloudfront.net/Zscaler-osx-4.8.0.281-installer.pkg",
+  "sha256": "51e8d295ba0c2cfe1efaf775d8fe24710b3737d95342194b3b43c45de7d1aa92",
+  "team_id": "PCBCQZJ7S7",
+  "architectures": ["arm64", "x86_64"],
+  "format": "pkg",
+  "supported_macos": [15, 26]
+}

@@ -1,19 +1,44 @@
 *Instructions on [how to share the connection of a Zscaler installed in a virtual machine](#sharing-zscaler) can be found below.*
 
-# Killing Zscaler on macOS [![Buy Me A Coffee](https://img.shields.io/static/v1?label=&message=%E2%98%95%20Buy%20Me%20A%20Coffee&color=FFDD00)](https://www.buymeacoffee.com/bkahlert)
+# Killing Zscaler on macOS [![Build][build-badge]][build] [![License][license-badge]](LICENSE) [![Buy Me A Coffee](https://img.shields.io/static/v1?label=&message=%E2%98%95%20Buy%20Me%20A%20Coffee&color=FFDD00)](https://www.buymeacoffee.com/bkahlert)
+
+[build]: https://github.com/bkahlert/kill-zscaler/actions/workflows/test.yml
+[build-badge]: https://img.shields.io/github/actions/workflow/status/bkahlert/kill-zscaler/test.yml?branch=main&label=Build&logo=github&logoColor=fff
+[license-badge]: https://img.shields.io/github/license/bkahlert/kill-zscaler?color=29ABE2&label=License&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1OTAgNTkwIiAgeG1sbnM6dj0iaHR0cHM6Ly92ZWN0YS5pby9uYW5vIj48cGF0aCBkPSJNMzI4LjcgMzk1LjhjNDAuMy0xNSA2MS40LTQzLjggNjEuNC05My40UzM0OC4zIDIwOSAyOTYgMjA4LjljLTU1LjEtLjEtOTYuOCA0My42LTk2LjEgOTMuNXMyNC40IDgzIDYyLjQgOTQuOUwxOTUgNTYzQzEwNC44IDUzOS43IDEzLjIgNDMzLjMgMTMuMiAzMDIuNCAxMy4yIDE0Ny4zIDEzNy44IDIxLjUgMjk0IDIxLjVzMjgyLjggMTI1LjcgMjgyLjggMjgwLjhjMCAxMzMtOTAuOCAyMzcuOS0xODIuOSAyNjEuMWwtNjUuMi0xNjcuNnoiIGZpbGw9IiNmZmYiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxOS4yMTIiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4%3D
 
 Zscaler can be annoying if you're trying to stop it. Despite having administrative rights, usually it asks for a password.
 
-Pick one of the following options to take back control.
+These commands stop Zscaler's launchd services for the current login session.
+They require a logged-in desktop user and administrator authorization.
+Starting restores the services and opens Zscaler as that desktop user.
+Rebooting or logging in again may also restore services.
+
+The fix for [#6](https://github.com/bkahlert/kill-zscaler/issues/6) uses
+`launchctl bootout` and `bootstrap` with explicit domains:
+`gui/<console-user-uid>` for LaunchAgents and `system` for LaunchDaemons.
+It does not use legacy `load`/`unload`, kill individual processes, uninstall
+anything, or change persistent service configuration.
+
+**Limits:** Vendor self-protection, system/network extensions, and company
+management software can prevent stopping or independently restart Zscaler.
+These scripts do not bypass those mechanisms. Use them only where authorized.
+See [verification and troubleshooting](#verification-and-troubleshooting) for
+what the automated tests prove.
 
 ## Using the App
 
-People who prefer to use apps over command lines, can use
-`Kill Zscaler.app` which is a simple wrapper of the shell script described below.
+The apps delegate to the same shell scripts with a graphical administrator
+authorization prompt.
 
 - [Download this repository as an archive](https://github.com/bkahlert/kill-zscaler/archive/refs/heads/main.zip).
-- Open `Kill Zscaler.app` to kill Zscaler.
-- To use Zscaler again, reboot or open `Start Zscaler.app`.
+- Extract the **entire archive**. Keep both apps, the shell scripts, and
+  [`zscaler.bash`](zscaler.bash) together; the apps are not standalone bundles.
+- Open `Kill Zscaler.app` to stop Zscaler.
+- Open `Start Zscaler.app` to restore it.
+
+macOS may require approval before opening a downloaded, unsigned app.
+The Terminal scripts below are an alternative. Authorization cancellation
+and command failures are reported by AppleScript rather than treated as success.
 
 ![Kill Zscaler and Start Zscaler app](apps.png)
 
@@ -22,36 +47,128 @@ People who prefer to use apps over command lines, can use
 - Open Terminal or whatever terminal you prefer (e.g. [iTerm2](https://iterm2.com/)).
 - Type `git clone https://github.com/bkahlert/kill-zscaler.git`
 - Type `cd kill-zscaler` to change into the newly cloned repository.
-- Make sure the scripts are executable by running `chmod +x kill-zscaler.sh start-zscaler.sh`
-- Type `./kill-zscaler.sh` to kill Zscaler.
-- To use Zscaler again, reboot or type `./start-zscaler.sh`.
+- Keep [kill-zscaler.sh](kill-zscaler.sh), [start-zscaler.sh](start-zscaler.sh),
+  and [`zscaler.bash`](zscaler.bash) in that directory.
+
+Stop Zscaler from the checkout:
+
+```shell
+./kill-zscaler.sh
+```
+
+Restore Zscaler from the checkout:
+
+```shell
+./start-zscaler.sh
+```
+
+Both commands request administrator privileges when needed. They also work
+when invoked with `sudo`: the desktop user is resolved from `/dev/console`,
+not the root account. Repeating either command is safe for services already
+in the requested state. Failures return a nonzero exit status.
 
 ## Using a Shell
 
-- Open Terminal or whatever terminal you prefer (e.g. [iTerm2](https://iterm2.com/)).
-- Type `find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;`
-to kill Zscaler.
-- To use Zscaler again, reboot or
-  type `open -a /Applications/Zscaler/Zscaler.app --hide; sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;`.
+To invoke the scripts without executable permissions, run Bash explicitly
+from the checkout. Stop:
+
+```shell
+bash ./kill-zscaler.sh
+```
+
+Start:
+
+```shell
+bash ./start-zscaler.sh
+```
+
+Use these shared entry points instead of copying launchctl one-liners.
+They read each plist's `Label`, handle paths with spaces, and report errors.
 
 ### Using an Alias
 
-To kill Zscaler by typing `kill-zscaler` (and to start it with `start-zscaler`) do the following steps:
+The historical [kill-zscaler.alias.txt](kill-zscaler.alias.txt) file now defines
+Bash/Zsh functions. They forward arguments and use the same scripts.
+From the checkout, install them in the current shell, then stop and start:
 
-- Open the shell initialization file of your shell
-  - Bash: ~/.bashrc
-  - ZSH: ~/.zshrc
-  - For more information aliases, read https://medium.com/@rajsek/zsh-bash-startup-files-loading-order-bashrc-zshrc-etc-e30045652f2e or any other appropriate Google
-    match.
-- Add the contents of `kill-zscaler.alias.txt` or the following lines to it:
-  ```shell
-  alias start-zscaler="open -a /Applications/Zscaler/Zscaler.app --hide; sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl load {} \;"
-  alias kill-zscaler="find /Library/LaunchAgents -name '*zscaler*' -exec launchctl unload {} \;;sudo find /Library/LaunchDaemons -name '*zscaler*' -exec launchctl unload {} \;"
-  ```
-- Open a new shell (or type `source ~/.bashrc` / `source ~/.zshrc` / … to load your changes)
-- Type `kill-zscaler` to kill Zscaler
-- To use Zscaler again, reboot or type `start-zscaler`.
+```shell
+export ZSCALER_REPO="$PWD"
+source "$ZSCALER_REPO/kill-zscaler.alias.txt"
+kill-zscaler
+start-zscaler
+```
 
+For future shells, add an assignment of `ZSCALER_REPO` to the checkout's
+**absolute path** and the `source` line to your shell initialization file
+(`~/.bashrc` for Bash or `~/.zshrc` for Zsh). The functions then work from
+any directory. Remove old `kill-zscaler`/`start-zscaler` aliases first.
+
+## Verification and troubleshooting
+
+[GitHub Actions](.github/workflows/test.yml) runs shell syntax checks,
+ShellCheck, the existing connection-sharing regression, and
+[lifecycle/documentation tests](tests/test_lifecycle.py).
+The latter execute scripts, shell functions, app-wrapper delegation, and
+the lifecycle commands above against controlled command doubles.
+On macOS, they also compile the app wrappers' actual AppleScript.
+Other shell blocks in this README are syntax-checked, not executed:
+VM creation, SSH, and network configuration require a separate environment.
+
+The workflow additionally runs [real launchd integration tests](tests/launchd-integration)
+on disposable `macos-15` and `macos-26` runners.
+They install harmless, uniquely labeled KeepAlive fixtures, exercise both
+domains, check repeated stop/start and unrelated services, and clean up.
+After stopping, they poll both service targets every five seconds for at least
+600 seconds before restoring them. Any observed reappearance or inspection
+error fails the test; a service returning between polls can escape detection.
+These fixture jobs never install Zscaler. Linux containers cannot provide launchd.
+The integration jobs refuse to run outside GitHub-hosted macOS CI.
+Completed fixture checks cover Sonoma **14.8.9 (23J631)**, macOS
+**15.7.9 (24G830)**, and **26.6.2 (25G83)**, each with at least
+600 seconds of sampled absence before restoration.
+Sonoma 14.0/14.6 remain unverified.
+See the [run links and evidence boundaries](tests/README.md#completed-evidence).
+
+For Sonoma coverage, manually dispatch the workflow with `sonoma` enabled
+while `macos-14` remains available.
+[GitHub is retiring Sonoma runners](https://github.com/actions/runner-images/issues/13518)
+on November 2, 2026, with brownouts before removal.
+It is therefore not a required target for every push.
+
+The separate, manually dispatched `real_client` lane installs the pinned,
+signed Zscaler **4.8.0.281** package only on disposable current-macOS runners.
+It requires real running services before exercising stop, a 600-second
+absence observation, restoration, repeated operations, and console-user app
+ownership. Installation success alone cannot pass. No tenant is supplied.
+The [completed actual-client run](tests/README.md#completed-evidence) passed
+on arm64 macOS **15.7.9 (24G830)** and **26.6.2 (25G83)**.
+Real vendor service/tray processes exited, all discovered launchd targets
+remained absent for at least 600 sampled seconds, and services were restored.
+Repeated stop/start, console-user tray ownership, and an unrelated service
+also passed. Neither runner had an active system extension.
+
+**Evidence boundary:** Regular green checks prove the fixture lifecycle.
+Actual-client results are reported separately, including failed prerequisites.
+Neither lane certifies enrolled network function, organization policy, native
+authorization dialogs, or unsigned-app approval.
+See the [evidence matrix and real-client prerequisites](tests/README.md)
+for completed versions, reproduction, and remaining gaps.
+
+Run the safe command-double suite locally from the checkout:
+
+```shell
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+If a command fails, retain its complete error output. Check that a desktop
+user is logged in and that administrator authorization succeeded.
+Discovery covers files or symlinks named `*zscaler*.plist` (case-insensitive)
+directly in `/Library/LaunchAgents` and `/Library/LaunchDaemons`.
+An absent service is a no-op; malformed plists, inaccessible domains, and
+failed service operations are errors. Partial operations are not rolled back.
+Do not treat a successful exit as proof that every Zscaler component stopped.
+If Zscaler returns later, report the macOS/client versions, exact command,
+error output, and whether device management or self-protection is enabled.
 
 # Sharing Zscaler
 
