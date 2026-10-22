@@ -43,6 +43,9 @@ cleanup() {
     fi
   done
   sudo rm -f -- "$agent_path" "$daemon_path" "$unrelated_path" || status=1
+  if [[ -d /Applications/Zscaler/Zscaler.app ]]; then
+    osascript -e 'tell application "/Applications/Zscaler/Zscaler.app" to quit' || status=1
+  fi
   # This directory was absent at preflight and contains only our test app.
   sudo rm -r -- /Applications/Zscaler || status=1
   rm -r -- "$work" || status=1
@@ -113,9 +116,14 @@ sudo install -o root -g wheel -m 644 "$work/agent.plist" "$agent_path"
 sudo install -o root -g wheel -m 644 "$work/daemon.plist" "$daemon_path"
 sudo install -o root -g wheel -m 644 "$work/unrelated.plist" "$unrelated_path"
 
-# A harmless stand-in exercises the real `open` call as the console user.
-osacompile -o "$work/Zscaler.app" \
-  -e "do shell script \"/usr/bin/touch $work/opened\""
+# Stay open so repeated launches cannot race a short-lived app's termination.
+osacompile -s -o "$work/Zscaler.app" \
+  -e 'on run' \
+  -e "do shell script \"/usr/bin/touch $work/opened\"" \
+  -e 'end run' \
+  -e 'on reopen' \
+  -e "do shell script \"/usr/bin/touch $work/opened\"" \
+  -e 'end reopen'
 sudo mkdir /Applications/Zscaler
 sudo ditto "$work/Zscaler.app" /Applications/Zscaler/Zscaler.app
 
@@ -156,6 +164,7 @@ python3 "$repo_dir/tests/observe_launchd.py" \
   --seconds 600 --interval 5
 [[ $(service_pid "system/$unrelated_label") == "$unrelated_pid" ]]
 
+rm -f -- "$work/opened"
 sudo /bin/bash "$repo_dir/start-zscaler.sh"
 agent_pid=$(wait_running "gui/$uid/$agent_label")
 daemon_pid=$(wait_running "system/$daemon_label")

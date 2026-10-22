@@ -14,12 +14,25 @@ They also reject permission errors, unavailable domains, and invalid inputs.
 
 ## Completed evidence
 
-| Environment                              | Completed result                                                                                                | Boundary                                                                   |
-|------------------------------------------|-----------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
-| macOS 15.7.9 (24G830) and 26.6.2 (25G83) | [23 regressions and launchd fixtures passed](https://github.com/bkahlert/kill-zscaler/actions/runs/39731780695) | Earlier immediate stop/restore checks; no sustained observation            |
-| Sonoma 14.x                              | Not yet verified                                                                                                | No completed Sonoma run; 14.0 and 14.6 remain specifically unverified      |
-| Actual Zscaler Client Connector          | Not verified                                                                                                    | No suitable installer and tenant-free running-service baseline established |
-| Enrolled/MDM-controlled Zscaler          | Not verified                                                                                                    | Requires an authorized tenant and deployment policy                        |
+| Environment                     | Completed result               | Boundary                                 |
+|---------------------------------|--------------------------------|------------------------------------------|
+| Sonoma 14.8.9 (23J631)          | [600.167 seconds][sonoma-job]  | Fixtures, not exact 14.0/14.6 or Zscaler |
+| macOS 15.7.9 (24G830)           | [600.036 seconds][current-run] | Fixtures, not a proprietary client       |
+| macOS 26.6.2 (25G83)            | [600.130 seconds][current-run] | Fixtures, not a proprietary client       |
+| Actual Zscaler Client Connector | Not verified                   | Acquisition/readiness gate unresolved    |
+| Enrolled/MDM-controlled Zscaler | Not verified                   | Requires authorized tenant and policy    |
+
+[sonoma-job]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734173228/job/119675908169
+[current-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734172920
+
+The linked jobs at commit `0f36fe0` passed stop, sustained absence, restoration,
+repeated operations, unrelated-service preservation, and console-user app open.
+Their 32 regression tests also passed (Ubuntu skips two macOS-only cases).
+The Sonoma job passed, but that manual run failed overall: a separate Tahoe
+job encountered LaunchServices error -600 during repeated stand-in app opening,
+after its absence observation succeeded. The fully green push run linked above
+passed both current-macOS jobs. The stand-in now stays open to avoid racing
+its own termination and clears its opening marker before restoration.
 
 A fixture is not an installed Zscaler client. A signed installer, installation
 exit status, or launched app alone would not prove client readiness or lifecycle.

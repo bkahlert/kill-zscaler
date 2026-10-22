@@ -123,6 +123,11 @@ After stopping, they poll both service targets every five seconds for at least
 error fails the test; a service returning between polls can escape detection.
 The tests never install Zscaler. Linux containers cannot provide launchd.
 The integration test refuses to run outside GitHub-hosted macOS CI.
+Completed fixture checks cover Sonoma **14.8.9 (23J631)**, macOS
+**15.7.9 (24G830)**, and **26.6.2 (25G83)**, each with at least
+600 seconds of sampled absence before restoration.
+Sonoma 14.0/14.6 and actual Zscaler remain unverified.
+See the [run links and evidence boundaries](tests/README.md#completed-evidence).
 
 For Sonoma coverage, manually dispatch the workflow with `sonoma` enabled
 while `macos-14` remains available.
