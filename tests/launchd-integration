@@ -151,6 +151,11 @@ sudo /bin/bash "$repo_dir/kill-zscaler.sh"
 assert_absent "gui/$uid/$agent_label"
 assert_absent "system/$daemon_label"
 
+python3 "$repo_dir/tests/observe_launchd.py" \
+  --target "gui/$uid/$agent_label" --target "system/$daemon_label" \
+  --seconds 600 --interval 5
+[[ $(service_pid "system/$unrelated_label") == "$unrelated_pid" ]]
+
 sudo /bin/bash "$repo_dir/start-zscaler.sh"
 agent_pid=$(wait_running "gui/$uid/$agent_label")
 daemon_pid=$(wait_running "system/$daemon_label")
@@ -164,4 +169,4 @@ for (( attempt=0; attempt<100; attempt++ )); do
   sleep 0.1
 done
 [[ -f $work/opened ]]
-printf 'PASS: real agent/daemon stop, KeepAlive, restore, repeat, and user app open\n'
+printf 'PASS: real agent/daemon stop, KeepAlive, 600s absence, restore, repeat, and user app open\n'

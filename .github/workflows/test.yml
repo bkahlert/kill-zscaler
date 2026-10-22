@@ -42,7 +42,7 @@ jobs:
       matrix:
         os: ${{ fromJSON(inputs.sonoma && '["macos-14", "macos-15", "macos-26"]' || '["macos-15", "macos-26"]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Regression, documentation, and AppleScript compilation

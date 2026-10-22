@@ -1,6 +1,10 @@
 *Instructions on [how to share the connection of a Zscaler installed in a virtual machine](#sharing-zscaler) can be found below.*
 
-# Killing Zscaler on macOS [![Buy Me A Coffee](https://img.shields.io/static/v1?label=&message=%E2%98%95%20Buy%20Me%20A%20Coffee&color=FFDD00)](https://www.buymeacoffee.com/bkahlert)
+# Killing Zscaler on macOS [![Build][build-badge]][build] [![License][license-badge]](LICENSE) [![Buy Me A Coffee](https://img.shields.io/static/v1?label=&message=%E2%98%95%20Buy%20Me%20A%20Coffee&color=FFDD00)](https://www.buymeacoffee.com/bkahlert)
+
+[build]: https://github.com/bkahlert/kill-zscaler/actions/workflows/test.yml
+[build-badge]: https://img.shields.io/github/actions/workflow/status/bkahlert/kill-zscaler/test.yml?branch=main&label=Build&logo=github&logoColor=fff
+[license-badge]: https://img.shields.io/github/license/bkahlert/kill-zscaler?color=29ABE2&label=License&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1OTAgNTkwIiAgeG1sbnM6dj0iaHR0cHM6Ly92ZWN0YS5pby9uYW5vIj48cGF0aCBkPSJNMzI4LjcgMzk1LjhjNDAuMy0xNSA2MS40LTQzLjggNjEuNC05My40UzM0OC4zIDIwOSAyOTYgMjA4LjljLTU1LjEtLjEtOTYuOCA0My42LTk2LjEgOTMuNXMyNC40IDgzIDYyLjQgOTQuOUwxOTUgNTYzQzEwNC44IDUzOS43IDEzLjIgNDMzLjMgMTMuMiAzMDIuNCAxMy4yIDE0Ny4zIDEzNy44IDIxLjUgMjk0IDIxLjVzMjgyLjggMTI1LjcgMjgyLjggMjgwLjhjMCAxMzMtOTAuOCAyMzcuOS0xODIuOSAyNjEuMWwtNjUuMi0xNjcuNnoiIGZpbGw9IiNmZmYiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxOS4yMTIiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4%3D
 
 Zscaler can be annoying if you're trying to stop it. Despite having administrative rights, usually it asks for a password.
 
@@ -114,6 +118,9 @@ The workflow additionally runs [real launchd integration tests](tests/launchd-in
 on disposable `macos-15` and `macos-26` runners.
 They install harmless, uniquely labeled KeepAlive fixtures, exercise both
 domains, check repeated stop/start and unrelated services, and clean up.
+After stopping, they poll both service targets every five seconds for at least
+600 seconds before restoring them. Any observed reappearance or inspection
+error fails the test; a service returning between polls can escape detection.
 The tests never install Zscaler. Linux containers cannot provide launchd.
 The integration test refuses to run outside GitHub-hosted macOS CI.
 
@@ -127,6 +134,8 @@ It is therefore not a required target for every push.
 reported runner versions. It does not certify a proprietary Zscaler build,
 organization policy, native authorization dialog, or unsigned-app approval.
 No live-client verification is available from the maintainer.
+See the [evidence matrix and real-client prerequisites](tests/README.md)
+for completed versions, reproduction, and remaining gaps.
 
 Run the safe command-double suite locally from the checkout:
 
