@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      real_client:
+        description: Install the pinned real client on disposable current-macOS runners
+        type: boolean
+        default: false
       sonoma:
         description: Also test Sonoma before its November 2, 2026 retirement
         type: boolean
@@ -37,6 +41,7 @@ jobs:
         run: bash tests/share-zscaler-download-test.sh
 
   launchd:
+    if: ${{ !inputs.real_client }}
     strategy:
       fail-fast: false
       matrix:
@@ -49,3 +54,26 @@ jobs:
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: Real launchd integration (no Zscaler installation)
         run: bash tests/launchd-integration
+
+  real-client:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.real_client }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pinned actual-client readiness (no tenant)
+        run: >-
+          python3 tests/real_client_integration.py
+          --manifest tests/fixtures/zscaler-client.json
+          --report readiness.json
+      - name: Preserve allowlisted readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readiness-${{ matrix.os }}
+          path: readiness.json
+          if-no-files-found: error

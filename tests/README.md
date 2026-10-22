@@ -14,13 +14,13 @@ They also reject permission errors, unavailable domains, and invalid inputs.
 
 ## Completed evidence
 
-| Environment                     | Completed result               | Boundary                                 |
-|---------------------------------|--------------------------------|------------------------------------------|
-| Sonoma 14.8.9 (23J631)          | [600.167 seconds][sonoma-job]  | Fixtures, not exact 14.0/14.6 or Zscaler |
-| macOS 15.7.9 (24G830)           | [600.036 seconds][current-run] | Fixtures, not a proprietary client       |
-| macOS 26.6.2 (25G83)            | [600.130 seconds][current-run] | Fixtures, not a proprietary client       |
-| Actual Zscaler Client Connector | Not verified                   | Acquisition/readiness gate unresolved    |
-| Enrolled/MDM-controlled Zscaler | Not verified                   | Requires authorized tenant and policy    |
+| Environment                    | Completed result              | Boundary                                    |
+|--------------------------------|-------------------------------|---------------------------------------------|
+| Sonoma 14.8.9 (23J631)          | [600.167 seconds][sonoma-job]  | Fixtures, not exact 14.0/14.6 or Zscaler       |
+| macOS 15.7.9 (24G830)           | [600.036 seconds][current-run] | Fixtures, not a proprietary client           |
+| macOS 26.6.2 (25G83)            | [600.130 seconds][current-run] | Fixtures, not a proprietary client           |
+| Actual Zscaler Client Connector | CI readiness pending          | Signed package inspected; no tenant supplied |
+| Enrolled/MDM-controlled Zscaler  | Not verified                  | Requires authorized tenant and policy       |
 
 [sonoma-job]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734173228/job/119675908169
 [current-run]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734172920
@@ -65,9 +65,10 @@ Neither a newer runner nor a different Sonoma patch release certifies 14.0/14.6.
 ## Real-client prerequisites
 
 Real-client testing is restricted to disposable CI, never the maintainer's Mac.
-Before adding an installation workflow, establish a vendor-authorized,
-versioned installer with supported OS/architecture, a pinned SHA-256,
-independently verified vendor signing identity, and documented unattended usage.
+The manually dispatched `real_client` input of the [workflow](../.github/workflows/test.yml)
+installs only the reviewed, pinned package on fresh macOS 15/26 runners.
+The [manifest](fixtures/zscaler-client.json) records its version, SHA-256,
+vendor signing identity, architectures, and selected test OS versions.
 No placeholder tenant, arbitrary "latest" URL, or fixture fallback is acceptable.
 
 Without enrollment, the actual client must still expose a nonempty, running
@@ -78,31 +79,42 @@ absence, repeated operations, and restoration of actual services.
 Extensions and enrolled policy remain separate evidence, not inferred from
 launchd service status.
 
-### Acquisition gate (October 22, 2026)
+### Reviewed installer (October 22, 2026)
 
 Zscaler's [2026 release summary](https://help.zscaler.com/zscaler-client-connector/client-connector-app-release-summary-2026)
 lists macOS build **4.8.0.281** as generally available.
-A read-only HEAD request to
+The user authorized downloading the versioned package from
 `https://d32a6ru7mhaq0c.cloudfront.net/Zscaler-osx-4.8.0.281-installer.pkg`
-returned HTTP 200. This contemporary lead replaces the Microsoft sample's
-3.6.1.19 installer as a research candidate, not a reviewed installation manifest.
+and testing it on disposable runners. No vendor binary is redistributed.
+Its SHA-256 is
+`51e8d295ba0c2cfe1efaf775d8fe24710b3737d95342194b3b43c45de7d1aa92`.
 
 Zscaler's [download guidance](https://help.zscaler.com/zscaler-client-connector/understanding-zscaler-client-connector-app-downloads)
 directs administrators to **Infrastructure > Client Connector > App Store**
 in the tenant Admin Console. It directs end users to their IT administrator.
-Authorization for direct-CDN acquisition and CI installation has not been
-established. Reachability does not establish that authorization.
+This CI experiment is not a replacement for that supported acquisition path.
 
 The vendor's [Jamf deployment guidance](https://help.zscaler.com/zscaler-client-connector/deploying-zscaler-client-connector-jamf-pro-macos)
 independently identifies extension Team ID `PCBCQZJ7S7` and discusses Sequoia
-and Tahoe. That is not verification of this package's signature or architecture.
-No payload was downloaded, hashed, inspected, or installed.
-Exact package architecture support and tenant-free service startup remain
-unestablished. No documented tenant-free setup was found in the
+and Tahoe. Local read-only package inspection verified Apple's trusted
+`Developer ID Installer: Zscaler inc (PCBCQZJ7S7)` chain and notarization.
+The payload's app version is 4.8.0.281, with native x86_64 and arm64 code.
+The native PKG installs to `/Applications/Zscaler`; its postinstall installs
+the vendor service, tunnel, and tray launchd plists.
+Nothing was installed or executed locally.
+No documented tenant-free setup was found in the
 [macOS installation options](https://help.zscaler.com/zscaler-client-connector/customizing-zscaler-client-connector-install-options-macos).
 That does **not** prove services cannot start before enrollment.
 
-**Blocked before installation:** obtain an authorized current installer and
-permission for disposable CI use, then verify its hash, signature, architecture,
-and actual unenrolled readiness. No real-client workflow or placeholder manifest
-was added because those prerequisites are unresolved.
+[`real_client_integration.py`](real_client_integration.py) refuses local execution,
+self-hosted runners, existing installations, and unselected OS/architectures.
+It verifies the downloaded hash, package signing identity, Gatekeeper assessment,
+and installed app version/signature before checking actual service readiness.
+It opens the real app as the logged-in runner without tenant parameters.
+Both a real agent and daemon must be running, including every discovered
+`RunAtLoad` service. The demand-started tunnel is reported, never fabricated.
+Installation success alone cannot pass. Startup has a 120-second bound.
+The allowlisted JSON report distinguishes discovered jobs, running PIDs,
+extension state, and the absence of enrollment/network-function evidence.
+Raw installer output, vendor diagnostics, configuration, and payloads are not
+uploaded. Readiness failure remains a failed job, never a fixture fallback.
