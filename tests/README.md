@@ -20,7 +20,7 @@ They also reject permission errors, unavailable domains, and invalid inputs.
 | macOS 15.7.9 (24G830)           | [600.172 seconds][current-run] | Fixtures, not a proprietary client                |
 | macOS 26.6.2 (25G83)            | [600.131 seconds][current-run] | Fixtures, not a proprietary client                |
 | Zscaler 4.8.0.281 / macOS 15    | [Readiness passed][client-run] | Real service/tray; no active extension or tenant  |
-| Zscaler 4.8.0.281 / macOS 26    | [Readiness failed][client-run] | Installed, but no running vendor service baseline |
+| Zscaler 4.8.0.281 / macOS 26    | [Harness rejected readiness][client-run] | Nested launchd state misparsed; corrected run pending |
 | Enrolled/MDM-controlled Zscaler | Not verified                   | Requires authorized tenant and policy             |
 
 [sonoma-job]: https://github.com/bkahlert/kill-zscaler/actions/runs/39734173228/job/119675908169
@@ -36,6 +36,12 @@ job encountered LaunchServices error -600 during repeated stand-in app opening,
 after its absence observation succeeded. The fully green push run linked above
 passed both current-macOS jobs. The stand-in now stays open to avoid racing
 its own termination and clears its opening marker before restoration.
+
+The first actual-client runs incorrectly rejected Tahoe readiness.
+Their diagnostic report showed real vendor PIDs, but the harness let nested
+resource-coalition `state = active` fields overwrite the service state.
+The corrected parser reads only direct service fields. A regression test
+reproduces that format; completed corrected real-client evidence is still needed.
 
 A fixture is not an installed Zscaler client. A signed installer, installation
 exit status, or launched app alone would not prove client readiness or lifecycle.

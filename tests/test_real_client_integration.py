@@ -97,15 +97,25 @@ class RealClientIntegrationTest(unittest.TestCase):
                 client._running("system/com.zscaler.service")
 
     def test_parses_actual_launchd_pid(self):
-        result = subprocess.CompletedProcess([], 0, "state = running\n\tpid = 123\n", "")
+        result = subprocess.CompletedProcess([], 0, "\tstate = running\n\tpid = 123\n", "")
+        with patch.object(client.subprocess, "run", return_value=result):
+            pid = client._running("system/com.zscaler.service")
+        self.assertEqual(pid, 123)
+
+    def test_nested_coalition_state_does_not_replace_service_state(self):
+        result = subprocess.CompletedProcess([], 0,
+                                             "system/com.zscaler.service = {\n"
+                                             "\tstate = running\n\tpid = 123\n"
+                                             "\tresource coalition = {\n"
+                                             "\t\tstate = active\n\t}\n}\n", "")
         with patch.object(client.subprocess, "run", return_value=result):
             pid = client._running("system/com.zscaler.service")
         self.assertEqual(pid, 123)
 
     def test_service_diagnostics_exclude_raw_launchd_configuration(self):
         result = subprocess.CompletedProcess([], 0,
-                                             "state = waiting\nlast exit code = 78\n"
-                                             "private-setting = confidential\n", "")
+                                             "\tstate = waiting\n\tlast exit code = 78\n"
+                                             "\tprivate-setting = confidential\n", "")
         with patch.object(client.subprocess, "run", return_value=result):
             state = client._service_state("system/com.zscaler.service")
         self.assertEqual(state, {
@@ -253,17 +263,17 @@ class _ClientCommands:
                 pass
             elif target == "system/com.apple.logd":
                 pid = 100 if self.stops and self.failures.get("control_changed") else 99
-                output = f"state = running\npid = {pid}"
+                output = f"\tstate = running\n\tpid = {pid}"
             elif self.stopped:
                 if self.now >= 595 and self.failures.get("late_restart"):
-                    output = "state = running\npid = 1010"
+                    output = "\tstate = running\n\tpid = 1010"
                 else:
                     status = 113
             elif self.starts and self.failures.get("partial_restore"):
                 status = 113
             else:
                 pid = 20 if target.startswith("gui/") else 10
-                output = f"state = running\npid = {pid + (1000 if self.starts else 0)}"
+                output = f"\tstate = running\n\tpid = {pid + (1000 if self.starts else 0)}"
         elif command[0] == "ps":
             pid = int(command[2])
             if command[-1] == "lstart=,comm=":

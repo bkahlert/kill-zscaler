@@ -95,7 +95,7 @@ def _service_state(target):
         raise RuntimeError(f"launchctl print {target}: status {result.returncode}")
     fields = dict(
         line.strip().split(" = ", 1) for line in result.stdout.splitlines()
-        if " = " in line
+        if line.startswith("\t") and not line.startswith("\t\t") and " = " in line
     )
     pid = fields.get("pid", "")
     return {
