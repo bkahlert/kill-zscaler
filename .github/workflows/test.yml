@@ -21,7 +21,7 @@ jobs:
   regression:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Shell syntax and lint
         shell: bash
         run: |
@@ -49,7 +49,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Regression, documentation, and AppleScript compilation
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: Real launchd integration (no Zscaler installation)
@@ -64,7 +64,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Pinned actual-client lifecycle (no tenant)
         run: >-
           python3 tests/real_client_integration.py
